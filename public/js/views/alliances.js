@@ -307,17 +307,20 @@ const AlliancesView = {
     </div>`;
   },
 
-  _renderAllianceTeam(team, role, tierColors) {
+  _renderAllianceTeam(team, draftRole, tierColors) {
     if (!team) return '';
-    const tierColor = tierColors[team.tier] || '#eee';
+    const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
+    const scoutedRole = this._getPrimaryRole(team.teamNumber);
+    const roleIcon = scoutedRole ? roleIcons[scoutedRole] : '';
+
     return `<div style="display:flex; align-items:center; gap:6px; padding:3px 0; border-bottom:1px solid var(--border);">
       <div style="flex:1; min-width:0;">
-        <div style="font-size:13px; font-weight:600;">#${team.teamNumber}</div>
+        <div style="font-size:13px; font-weight:600;">#${team.teamNumber} ${roleIcon}</div>
         <div style="font-size:10px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${UI.esc(team.teamName)}</div>
       </div>
       <div style="text-align:right; flex-shrink:0;">
         ${team.opr != null ? `<div style="font-size:10px; font-weight:700; color:var(--accent);">${team.opr.toFixed(0)}</div>` : ''}
-        <div style="font-size:9px; color:var(--text-secondary);">${role}</div>
+        <div style="font-size:9px; color:var(--text-secondary);">${draftRole}</div>
       </div>
     </div>`;
   },
