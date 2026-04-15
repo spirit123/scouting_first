@@ -18,6 +18,13 @@ echo "=== Installing dependencies ==="
 npm install
 
 echo ""
+# Optionally fetch fresh stats from TBA
+if [ -n "$TBA_KEY" ]; then
+  echo "=== Fetching team stats from The Blue Alliance ==="
+  TBA_KEY="$TBA_KEY" node fetch-stats.js
+fi
+
+echo ""
 echo "=== Seeding teams ==="
 node seed-teams.js
 
