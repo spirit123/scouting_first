@@ -28,11 +28,30 @@ Build a mobile-first scouting app for FIRST robotics competitions (FRC). The app
 - Teams are loaded from a CSV file (`2025gal_team_list.csv`) with columns: `team_number,team_name,city,state_prov,country,robot_image_url`
 - A `seed-teams.js` script imports the CSV into SQLite
 - ~75 teams with pre-loaded robot images from imgur
+- A `fetch-stats.js` script pulls performance data from **The Blue Alliance API** (free key required from https://www.thebluealliance.com/account)
+- Stats are stored in `team_stats.json` and loaded during seed
+
+### Team Stats (The Blue Alliance Integration)
+
+`fetch-stats.js` fetches for each team from their most recent completed event:
+- **OPR** (Offensive Power Rating) from the event's OPR endpoint
+- **Rankings**: rank, record (W-L-T), average RP per match
+- **Win rate**: calculated from record
+- **Rookie year**: from team info endpoint
+- **Composite score** (0-100): weighted formula — OPR (35%), win rate (20%), avg score (15%), rank percentile (10%), avg RP (10%), experience (5%), events played (5%)
+- **Tier**: auto-calculated from composite — elite (70+), strong (55-69), average (40-54), below_avg (25-39), developing (<25)
+- **Auto-generated scouting notes**: rookie, elite scorer, negative OPR, multi-event, etc.
+
+Rate-limited to ~3 requests/team with 300ms sleep. Teams with no completed events get a base estimate from rookie year.
+
+Usage: `TBA_KEY=your_key node fetch-stats.js && node seed-teams.js`
+Or integrated: `TBA_KEY=your_key bash scripts/update.sh`
 
 ### Database Schema (Server — SQLite)
 
 ```sql
 teams: team_number (PK), team_name, school, city, state, country, robot_image_url
+team_stats: team_number (PK), opr, win_rate, avg_score, avg_rp, composite, tier, record, source_event, rank_at_event, rookie_year, scouting_notes
 entries: uuid (PK), team_number, role, filename (nullable), scout_name, notes, created_at, synced_at, file_size
 scouts: name (PK)
 assignments: team_number + scout_name (composite PK)
@@ -77,8 +96,8 @@ The form is 3 steps (photo capture is integrated into step 1 alongside the team 
 
 ### Views (6 main + 2 extra, hash routing SPA)
 
-1. `#/gallery` — **Default view**. Team cards grid with photos, assignment badges, search, filters (All/My Teams/To Do)
-2. `#/team/:num` — Team detail: all photos grid with thumbnail picker, entries list, "Scout This Team" button
+1. `#/gallery` — **Default view**. Team cards grid with photos, OPR values, tier badges (gold/silver/bronze), assignment badges, search, filters (All/My Teams/To Do)
+2. `#/team/:num` — Team detail: all photos grid with thumbnail picker, stats panel (OPR, win rate, composite, experience, source event, scouting notes), entries list, "Scout This Team" button
 3. `#/scout` — Scouting form: team search + image + camera (section 1), role (section 2), notes (section 3)
 4. `#/scout/:num` — Scout form with team pre-selected + "Back to Team #N" button
 5. `#/queue` — Pending uploads list, "Sync All" button with progress bar
