@@ -58,6 +58,18 @@ const UI = {
     }
   },
 
+  // Generate UUID (works on HTTP, not just HTTPS)
+  uuid() {
+    if (typeof crypto !== 'undefined' && crypto.randomUUID) {
+      return crypto.randomUUID();
+    }
+    // Fallback for non-secure contexts (HTTP over hotspot)
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
+      const r = Math.random() * 16 | 0;
+      return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
+    });
+  },
+
   // Format file size
   formatSize(bytes) {
     if (!bytes) return '';

@@ -315,7 +315,7 @@ const ScoutView = {
 
     const scoutName = localStorage.getItem('scoutName') || 'Unknown';
     const entry = {
-      uuid: crypto.randomUUID(),
+      uuid: UI.uuid(),
       teamNumber: this._selectedTeam.teamNumber,
       role: this._selectedRole,
       scoutName,
