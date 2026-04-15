@@ -218,16 +218,7 @@ const ScoutView = {
   },
 
   async _loadTeamData(teamNumber) {
-    // Show robot image: prefer scout photo over pre-loaded image
     const team = this._selectedTeam;
-    const imgContainer = UI.$('#team-robot-img');
-    const scoutImg = team && team.latestPhotoUuid ? `/api/entries/${encodeURIComponent(team.latestPhotoUuid)}/image` : null;
-    const robotImg = scoutImg || (team ? team.robotImageUrl : null);
-    if (robotImg) {
-      imgContainer.innerHTML = `<img src="${UI.esc(robotImg)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
-    } else {
-      imgContainer.innerHTML = '';
-    }
 
     // Gather entries from local + server
     const localEntries = await DB.getEntriesByTeam(teamNumber);
@@ -249,6 +240,21 @@ const ScoutView = {
       ...serverEntries,
     ];
     UI.log('[Scout] Merged entries:', allEntries.length);
+
+    // Show robot image: check local photos, server photos, then pre-loaded image
+    const imgContainer = UI.$('#team-robot-img');
+    const localWithPhoto = localEntries.find(e => e.imageBlob);
+    const serverPhotoUuid = team && team.latestPhotoUuid ? team.latestPhotoUuid : null;
+
+    if (localWithPhoto) {
+      imgContainer.innerHTML = `<img src="${Camera.createPreviewURL(localWithPhoto.imageBlob)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+    } else if (serverPhotoUuid) {
+      imgContainer.innerHTML = `<img src="/api/entries/${encodeURIComponent(serverPhotoUuid)}/image" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+    } else if (team && team.robotImageUrl) {
+      imgContainer.innerHTML = `<img src="${UI.esc(team.robotImageUrl)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+    } else {
+      imgContainer.innerHTML = '';
+    }
 
     // Show existing data panel
     this._showExistingData(allEntries);
