@@ -116,6 +116,7 @@ const App = {
       const status = await Sync.checkConnection();
       dot.className = `status-dot ${status.online ? 'online' : 'offline'}`;
       dot.title = status.online ? 'Connected to server' : 'Offline';
+      dot.setAttribute('aria-label', status.online ? 'Connected' : 'Offline');
     };
 
     await check();

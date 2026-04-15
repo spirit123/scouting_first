@@ -83,7 +83,9 @@ const SettingsView = {
 
       const status = await Sync.checkConnection();
       if (status.online) {
-        resultDiv.textContent = `Connected! Server has ${status.teamCount} teams, ${status.photoCount} photos.`;
+        const ip = UI.$('#server-ip').value.trim() || window.location.hostname;
+        const port = UI.$('#server-port').value.trim() || '3000';
+        resultDiv.textContent = `Connected to ${ip}:${port} — ${status.teamCount} teams, ${status.entryCount || 0} entries.`;
         resultDiv.style.color = 'var(--success)';
       } else {
         resultDiv.textContent = 'Cannot reach server. Check IP and make sure you\'re on the hotspot.';

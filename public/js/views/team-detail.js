@@ -10,7 +10,7 @@ const TeamDetailView = {
     container.innerHTML = `
       <div class="card">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
-          <a href="#/gallery" style="font-size:20px; text-decoration:none;">←</a>
+          <a href="#/gallery" class="back-link" style="padding:0;">←</a>
           <div>
             <div style="font-size:20px; font-weight:700;">Team #${num}</div>
             <div style="font-size:14px; color:var(--text-secondary);">${UI.esc(teamName)}</div>
@@ -51,7 +51,7 @@ const TeamDetailView = {
     }
     for (const e of localUnsynced) {
       if (e.imageBlob) {
-        allPhotos.push({ src: Camera.createPreviewURL(e.imageBlob), label: `${e.scoutName || 'Scout'} (pending)`, source: null });
+        allPhotos.push({ src: Camera.createPreviewURL(e.imageBlob), label: `${e.scoutName || 'Scout'} (pending sync)`, source: null, pending: true });
       }
     }
     for (const e of serverEntries) {
@@ -67,7 +67,7 @@ const TeamDetailView = {
         <div class="photo-grid" style="margin-top:4px;">
         ${allPhotos.map(p => {
           const isSelected = currentThumb ? currentThumb === p.source : (!currentThumb && p.source === allPhotos[allPhotos.length - 1].source);
-          return `<div class="photo-thumb ${isSelected ? 'thumb-selected' : ''}" data-source="${UI.esc(p.source || '')}" title="${UI.esc(p.label)}">
+          return `<div class="photo-thumb ${isSelected ? 'thumb-selected' : ''} ${p.pending ? 'thumb-pending' : ''}" data-source="${UI.esc(p.source || '')}" title="${UI.esc(p.label)}">
             <img src="${UI.esc(p.src)}" alt="${UI.esc(p.label)}" loading="lazy">
             ${isSelected ? '<div class="thumb-badge">★</div>' : ''}
           </div>`;

@@ -3,11 +3,13 @@ const ExportView = {
   async render(container) {
     // Get stats
     let stats = { teamCount: 0, photoCount: 0, scoutCount: 0 };
+    let offline = false;
     try {
       const res = await fetch('/api/status');
       if (res.ok) stats = await res.json();
+      else offline = true;
     } catch (e) {
-      // offline
+      offline = true;
     }
 
     const localCount = (await DB.getUnsyncedEntries()).length;
@@ -32,6 +34,10 @@ const ExportView = {
           <div class="stat-label">Scouts</div>
         </div>
       </div>
+
+      ${offline ? `<div class="card" style="background: #ffebee; border: 1px solid var(--error); margin-bottom: 12px;">
+        <strong>Cannot reach server.</strong> Connect to hotspot to export data.
+      </div>` : ''}
 
       ${localCount > 0 ? `<div class="card" style="background: #fff3cd; border: 1px solid #ffc107; margin-bottom: 12px;">
         <strong>⚠️ ${localCount} entries not yet synced.</strong> Sync before exporting to include all data.

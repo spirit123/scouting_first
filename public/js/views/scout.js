@@ -10,7 +10,7 @@ const ScoutView = {
     this._preselectedTeam = preselectedTeam || null;
 
     container.innerHTML = `
-      ${this._preselectedTeam ? `<a href="#/team/${this._preselectedTeam}" class="btn btn-secondary btn-small mb-12" style="width:auto; display:inline-flex;">← Back to Team #${this._preselectedTeam}</a>` : ''}
+      ${this._preselectedTeam ? `<a href="#/team/${this._preselectedTeam}" class="back-link mb-8">← Back to Team #${this._preselectedTeam}</a>` : ''}
       <div class="card">
         <!-- Step 1: Team + Photo -->
         <div class="form-group">
@@ -40,7 +40,7 @@ const ScoutView = {
 
         <!-- Step 2: Role -->
         <div class="form-group">
-          <label>2. Robot Role</label>
+          <label>2. Robot Role <span class="required">*</span></label>
           <div class="role-selector" id="role-selector">
             <button class="role-btn" data-role="scorer">
               <span class="role-icon">🎯</span> Scorer
@@ -61,6 +61,7 @@ const ScoutView = {
         </div>
 
         <button id="btn-save" class="btn btn-success" disabled>Save Entry</button>
+        <div id="save-hint" class="text-center mt-8 text-secondary" style="font-size:12px;">Select a team and role to save</div>
       </div>
     `;
 
@@ -379,7 +380,10 @@ const ScoutView = {
   },
 
   _updateSaveButton() {
-    UI.$('#btn-save').disabled = !(this._selectedTeam && this._selectedRole);
+    const ready = !!(this._selectedTeam && this._selectedRole);
+    UI.$('#btn-save').disabled = !ready;
+    const hint = UI.$('#save-hint');
+    if (hint) hint.classList.toggle('hidden', ready);
   },
 
   async _save() {
