@@ -33,6 +33,12 @@ CREATE TABLE IF NOT EXISTS entries (
 CREATE INDEX IF NOT EXISTS idx_entries_team ON entries(team_number);
 CREATE INDEX IF NOT EXISTS idx_entries_scout ON entries(scout_name);
 
+CREATE TABLE IF NOT EXISTS team_thumbnails (
+    team_number   INTEGER PRIMARY KEY,
+    photo_source  TEXT NOT NULL,
+    FOREIGN KEY (team_number) REFERENCES teams(team_number)
+);
+
 CREATE TABLE IF NOT EXISTS scouts (
     name TEXT PRIMARY KEY
 );

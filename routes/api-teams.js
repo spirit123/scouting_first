@@ -8,9 +8,11 @@ router.get('/', (req, res) => {
     SELECT t.*,
       COUNT(e.uuid) as entry_count,
       COUNT(e.filename) as photo_count,
-      (SELECT e2.uuid FROM entries e2 WHERE e2.team_number = t.team_number AND e2.filename IS NOT NULL ORDER BY e2.created_at DESC LIMIT 1) as latest_photo_uuid
+      (SELECT e2.uuid FROM entries e2 WHERE e2.team_number = t.team_number AND e2.filename IS NOT NULL ORDER BY e2.created_at DESC LIMIT 1) as latest_photo_uuid,
+      th.photo_source as thumbnail_source
     FROM teams t
     LEFT JOIN entries e ON t.team_number = e.team_number
+    LEFT JOIN team_thumbnails th ON t.team_number = th.team_number
     GROUP BY t.team_number
     ORDER BY t.team_number
   `);
@@ -34,6 +36,18 @@ router.get('/:num', (req, res) => {
 
   if (!team) return res.status(404).json({ error: 'Team not found' });
   res.json(team);
+});
+
+// POST /api/teams/:num/thumbnail — set which photo to use as thumbnail
+router.post('/:num/thumbnail', (req, res) => {
+  const num = parseInt(req.params.num, 10);
+  if (isNaN(num)) return res.status(400).json({ error: 'Invalid team number' });
+
+  const { photoSource } = req.body; // UUID or "default"
+  if (!photoSource) return res.status(400).json({ error: 'photoSource required' });
+
+  db.run('INSERT OR REPLACE INTO team_thumbnails (team_number, photo_source) VALUES (?, ?)', [num, photoSource]);
+  res.json({ ok: true });
 });
 
 module.exports = router;

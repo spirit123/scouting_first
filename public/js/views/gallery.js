@@ -110,10 +110,17 @@ const GalleryView = {
           badge = '<div style="font-size:11px; color:var(--success); font-weight:600;">✓ Done</div>';
         }
 
-        // Prefer scout photo over pre-loaded robot image
-        const imgSrc = t.latestPhotoUuid
-          ? `/api/entries/${encodeURIComponent(t.latestPhotoUuid)}/image`
-          : t.robotImageUrl || '';
+        // Use chosen thumbnail, or fall back to latest scout photo, or pre-loaded image
+        let imgSrc = '';
+        if (t.thumbnailSource === 'default') {
+          imgSrc = t.robotImageUrl || '';
+        } else if (t.thumbnailSource) {
+          imgSrc = `/api/entries/${encodeURIComponent(t.thumbnailSource)}/image`;
+        } else if (t.latestPhotoUuid) {
+          imgSrc = `/api/entries/${encodeURIComponent(t.latestPhotoUuid)}/image`;
+        } else {
+          imgSrc = t.robotImageUrl || '';
+        }
 
         return `
         <a href="#/team/${t.teamNumber}" class="team-card" style="${borderStyle}">

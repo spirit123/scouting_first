@@ -22,6 +22,7 @@ const Teams = {
           photoCount: t.photo_count || 0,
           entryCount: t.entry_count || 0,
           latestPhotoUuid: t.latest_photo_uuid || null,
+          thumbnailSource: t.thumbnail_source || null,
         }));
         // Cache in IndexedDB for offline use
         await DB.saveTeams(this._teams);

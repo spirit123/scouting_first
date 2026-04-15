@@ -40,33 +40,65 @@ const TeamDetailView = {
     const localUnsynced = localEntries.filter(e => !e.synced);
 
     // Collect ALL photos: pre-loaded robot image + local unsynced + server
+    // Determine current thumbnail source
+    const team = Teams.get(teamNumber);
+    const currentThumb = team ? team.thumbnailSource : null;
+
     const allPhotos = [];
     if (robotImg) {
-      allPhotos.push({ src: robotImg, label: 'Team photo' });
+      allPhotos.push({ src: robotImg, label: 'Team photo', source: 'default' });
     }
     for (const e of localUnsynced) {
       if (e.imageBlob) {
-        allPhotos.push({ src: Camera.createPreviewURL(e.imageBlob), label: `${e.scoutName || 'Scout'} (pending)` });
+        allPhotos.push({ src: Camera.createPreviewURL(e.imageBlob), label: `${e.scoutName || 'Scout'} (pending)`, source: null });
       }
     }
     for (const e of serverEntries) {
       if (e.has_photo) {
-        allPhotos.push({ src: `/api/entries/${encodeURIComponent(e.uuid)}/image`, label: e.scout_name || 'Scout' });
+        allPhotos.push({ src: `/api/entries/${encodeURIComponent(e.uuid)}/image`, label: e.scout_name || 'Scout', source: e.uuid });
       }
     }
 
-    // Render photos grid
+    // Render photos grid with thumbnail selector
     if (allPhotos.length > 0) {
-      photosContainer.innerHTML = `<div class="photo-grid" style="margin-top:10px;">
-        ${allPhotos.map(p => `<div class="photo-thumb" title="${UI.esc(p.label)}">
-          <img src="${UI.esc(p.src)}" alt="${UI.esc(p.label)}" loading="lazy">
-        </div>`).join('')}
+      photosContainer.innerHTML = `
+        <div style="font-size:12px; color:var(--text-secondary); margin-top:8px; margin-bottom:4px;">Tap a photo to set as team thumbnail</div>
+        <div class="photo-grid" style="margin-top:4px;">
+        ${allPhotos.map(p => {
+          const isSelected = currentThumb ? currentThumb === p.source : (!currentThumb && p.source === allPhotos[allPhotos.length - 1].source);
+          return `<div class="photo-thumb ${isSelected ? 'thumb-selected' : ''}" data-source="${UI.esc(p.source || '')}" title="${UI.esc(p.label)}">
+            <img src="${UI.esc(p.src)}" alt="${UI.esc(p.label)}" loading="lazy">
+            ${isSelected ? '<div class="thumb-badge">★</div>' : ''}
+          </div>`;
+        }).join('')}
       </div>`;
 
       photosContainer.querySelectorAll('.photo-thumb').forEach(thumb => {
-        thumb.addEventListener('click', () => {
-          const img = thumb.querySelector('img');
-          if (img && img.src) App.showPhotoViewer(img.src);
+        thumb.addEventListener('click', async () => {
+          const source = thumb.dataset.source;
+          if (!source) {
+            // Local unsynced photo — can't set as thumbnail yet
+            const img = thumb.querySelector('img');
+            if (img && img.src) App.showPhotoViewer(img.src);
+            return;
+          }
+
+          // Set as thumbnail
+          const res = await fetch(`/api/teams/${teamNumber}/thumbnail`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ photoSource: source }),
+          });
+
+          if (res.ok) {
+            // Update local teams cache
+            if (team) team.thumbnailSource = source;
+            UI.toast('Thumbnail updated', 'success');
+            // Refresh the grid to show selection
+            await this._loadEntries(teamNumber, robotImg);
+          } else {
+            UI.toast('Failed to set thumbnail', 'error');
+          }
         });
       });
     }
