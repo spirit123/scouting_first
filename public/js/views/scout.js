@@ -4,6 +4,7 @@ const ScoutView = {
   _selectedRole: null,
   _photoBlob: null,
   _photoURL: null,
+  _assignments: [],
 
   render(container) {
     container.innerHTML = `
@@ -64,6 +65,18 @@ const ScoutView = {
     `;
 
     this._bindEvents();
+    this._loadAssignments();
+  },
+
+  async _loadAssignments() {
+    const scoutName = localStorage.getItem('scoutName') || '';
+    if (!scoutName) { this._assignments = []; return; }
+    try {
+      const res = await fetch(`/api/scouts/assignments?scout=${encodeURIComponent(scoutName)}`);
+      if (res.ok) this._assignments = await res.json();
+    } catch (e) {
+      this._assignments = [];
+    }
   },
 
   _bindEvents() {
@@ -79,7 +92,11 @@ const ScoutView = {
       setTimeout(() => resultsDiv.classList.add('hidden'), 200);
     });
     searchInput.addEventListener('focus', () => {
-      if (searchInput.value) this._onSearch(searchInput.value, resultsDiv);
+      if (searchInput.value) {
+        this._onSearch(searchInput.value, resultsDiv);
+      } else {
+        this._showAssignedTeams(resultsDiv);
+      }
     });
 
     // Role selector
@@ -101,9 +118,40 @@ const ScoutView = {
     UI.$('#btn-save').addEventListener('click', () => this._save());
   },
 
+  _showAssignedTeams(resultsDiv) {
+    // Show assigned teams (to-do first) when input is empty
+    const todoTeams = this._assignments.filter(a => !a.completed);
+    const doneTeams = this._assignments.filter(a => a.completed);
+    const items = [...todoTeams, ...doneTeams];
+
+    if (items.length === 0) {
+      // No assignments — show all teams
+      const allTeams = Teams._teams.slice(0, 10);
+      if (allTeams.length === 0) return;
+      this._renderSearchResults(resultsDiv, allTeams.map(t => ({
+        teamNumber: t.teamNumber, teamName: t.teamName
+      })));
+      return;
+    }
+
+    resultsDiv.innerHTML = items.map(a => {
+      const isDone = !!a.completed;
+      return `<div class="search-result-item" data-team="${a.team_number}" style="${isDone ? 'opacity:0.5;' : ''}">
+        <span class="team-num">#${a.team_number}</span>
+        ${UI.esc(a.team_name)}
+        ${isDone
+          ? '<span style="float:right; color:var(--success); font-size:12px;">✓ done</span>'
+          : '<span style="float:right; color:var(--warning); font-size:12px;">⬤ to do</span>'}
+      </div>`;
+    }).join('');
+
+    resultsDiv.classList.remove('hidden');
+    this._bindResultClicks(resultsDiv);
+  },
+
   _onSearch(query, resultsDiv) {
     if (!query || query.length < 1) {
-      resultsDiv.classList.add('hidden');
+      this._showAssignedTeams(resultsDiv);
       return;
     }
 
@@ -113,15 +161,28 @@ const ScoutView = {
       return;
     }
 
-    resultsDiv.innerHTML = matches.map(t => `
-      <div class="search-result-item" data-team="${t.teamNumber}">
+    // Mark assigned teams in search results
+    const assignedNums = new Set(this._assignments.map(a => a.team_number));
+    const doneNums = new Set(this._assignments.filter(a => a.completed).map(a => a.team_number));
+
+    resultsDiv.innerHTML = matches.map(t => {
+      const badge = doneNums.has(t.teamNumber)
+        ? '<span style="float:right; color:var(--success); font-size:12px;">✓</span>'
+        : assignedNums.has(t.teamNumber)
+          ? '<span style="float:right; color:var(--warning); font-size:12px;">⬤</span>'
+          : '';
+      return `<div class="search-result-item" data-team="${t.teamNumber}">
         <span class="team-num">#${t.teamNumber}</span>
         ${UI.esc(t.teamName)}
-      </div>
-    `).join('');
+        ${badge}
+      </div>`;
+    }).join('');
 
     resultsDiv.classList.remove('hidden');
+    this._bindResultClicks(resultsDiv);
+  },
 
+  _bindResultClicks(resultsDiv) {
     resultsDiv.querySelectorAll('.search-result-item').forEach(item => {
       item.addEventListener('click', () => {
         const num = parseInt(item.dataset.team, 10);
