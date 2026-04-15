@@ -1,0 +1,17 @@
+{
+  "name": "FTC Scout",
+  "short_name": "FTC Scout",
+  "description": "Offline-first scouting app for FIRST robotics competitions",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#1a1a2e",
+  "theme_color": "#1a1a2e",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/icons/icon-192.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    }
+  ]
+}

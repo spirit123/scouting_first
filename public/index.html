@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#1a1a2e">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>FTC Scout</title>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="icon" href="/icons/icon-192.svg">
+  <link rel="apple-touch-icon" href="/icons/icon-192.svg">
+  <link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+  <header id="header">
+    <h1 id="header-title">FTC Scout</h1>
+    <div id="connection-status" class="status-dot offline" title="Offline"></div>
+  </header>
+
+  <main id="app"></main>
+
+  <nav id="tab-bar">
+    <a href="#/scout" class="tab" data-tab="scout">
+      <span class="tab-icon">📷</span>
+      <span class="tab-label">Scout</span>
+    </a>
+    <a href="#/queue" class="tab" data-tab="queue">
+      <span class="tab-icon">📤</span>
+      <span class="tab-label">Queue</span>
+      <span id="queue-badge" class="badge hidden">0</span>
+    </a>
+    <a href="#/gallery" class="tab" data-tab="gallery">
+      <span class="tab-icon">🏷️</span>
+      <span class="tab-label">Teams</span>
+    </a>
+    <a href="#/settings" class="tab" data-tab="settings">
+      <span class="tab-icon">⚙️</span>
+      <span class="tab-label">Settings</span>
+    </a>
+  </nav>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <!-- Full-screen photo viewer overlay -->
+  <div id="photo-viewer" class="photo-viewer hidden">
+    <button id="viewer-close" class="viewer-close">&times;</button>
+    <img id="viewer-img" src="" alt="Full size photo">
+  </div>
+
+  <script src="/js/ui.js"></script>
+  <script src="/js/db.js"></script>
+  <script src="/js/teams.js"></script>
+  <script src="/js/camera.js"></script>
+  <script src="/js/sync.js"></script>
+  <script src="/js/views/scout.js"></script>
+  <script src="/js/views/queue.js"></script>
+  <script src="/js/views/gallery.js"></script>
+  <script src="/js/views/team-detail.js"></script>
+  <script src="/js/views/export.js"></script>
+  <script src="/js/views/settings.js"></script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,5 @@
+[
+  { "team_number": 1, "team_name": "Example Team Alpha", "school": "Alpha High School", "city": "Houston", "state": "TX" },
+  { "team_number": 2, "team_name": "Example Team Beta", "school": "Beta Academy", "city": "Austin", "state": "TX" },
+  { "team_number": 3, "team_name": "Example Team Gamma", "school": "Gamma Prep", "city": "Dallas", "state": "TX" }
+]
