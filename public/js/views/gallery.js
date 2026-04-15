@@ -14,9 +14,19 @@ const GalleryView = {
       } catch (e) {}
     }
 
+    // Check local entries to supplement server completion status
+    const localScoutedTeams = new Set();
+    try {
+      const scoutName = localStorage.getItem('scoutName') || '';
+      const localEntries = await DB.getAllEntries();
+      for (const e of localEntries) {
+        if (e.scoutName === scoutName) localScoutedTeams.add(e.teamNumber);
+      }
+    } catch (e) {}
+
     const assignedNums = new Set(this._assignments.map(a => a.team_number));
-    const doneNums = new Set(this._assignments.filter(a => a.completed).map(a => a.team_number));
-    const todoNums = new Set(this._assignments.filter(a => !a.completed).map(a => a.team_number));
+    const doneNums = new Set(this._assignments.filter(a => a.completed || localScoutedTeams.has(a.team_number)).map(a => a.team_number));
+    const todoNums = new Set(this._assignments.filter(a => !a.completed && !localScoutedTeams.has(a.team_number)).map(a => a.team_number));
 
     container.innerHTML = `
       <div class="section-header">
