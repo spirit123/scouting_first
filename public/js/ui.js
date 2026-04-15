@@ -70,6 +70,13 @@ const UI = {
     });
   },
 
+  // Debug logging (toggle in Settings)
+  log(...args) {
+    if (localStorage.getItem('debugMode') === 'true') {
+      console.log(...args);
+    }
+  },
+
   // Format file size
   formatSize(bytes) {
     if (!bytes) return '';

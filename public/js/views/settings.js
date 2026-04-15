@@ -42,6 +42,14 @@ const SettingsView = {
         <button id="btn-clear-all" class="btn btn-danger">Clear All Local Data</button>
       </div>
 
+      <div class="card">
+        <h3 style="margin-bottom:12px;">Developer</h3>
+        <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+          <input type="checkbox" id="debug-mode" ${localStorage.getItem('debugMode') === 'true' ? 'checked' : ''}>
+          <span style="font-size:14px;">Debug logging (browser console)</span>
+        </label>
+      </div>
+
       <div class="card" style="text-align:center; color:var(--text-secondary); font-size:12px;">
         FTC Scout v1.0.0
       </div>
@@ -81,6 +89,11 @@ const SettingsView = {
         resultDiv.textContent = 'Cannot reach server. Check IP and make sure you\'re on the hotspot.';
         resultDiv.style.color = 'var(--error)';
       }
+    });
+
+    UI.$('#debug-mode').addEventListener('change', (e) => {
+      localStorage.setItem('debugMode', e.target.checked ? 'true' : 'false');
+      UI.toast(e.target.checked ? 'Debug logging enabled' : 'Debug logging disabled', 'success');
     });
 
     UI.$('#btn-clear-synced').addEventListener('click', async () => {
