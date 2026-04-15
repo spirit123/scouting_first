@@ -43,6 +43,21 @@ async function seed() {
     );
   }
 
+  // Load team stats if available
+  const statsFile = path.join(__dirname, 'team_stats.json');
+  if (fs.existsSync(statsFile)) {
+    const stats = JSON.parse(fs.readFileSync(statsFile, 'utf-8'));
+    console.log(`Loading stats for ${stats.length} teams...`);
+    db.run('DELETE FROM team_stats');
+    for (const s of stats) {
+      db.run(
+        'INSERT OR REPLACE INTO team_stats (team_number, opr, win_rate, avg_score, avg_rp, composite, tier, record, source_event, rank_at_event, rookie_year, scouting_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [s.team_number, s.opr, s.win_rate, s.avg_score, s.avg_rp, s.composite, s.tier, s.record, s.source_event, s.rank_at_event, s.rookie_year, s.scouting_notes]
+      );
+    }
+    console.log(`Stats loaded for ${stats.length} teams.`);
+  }
+
   db.persist();
   console.log(`Done. ${teams.length} teams loaded.`);
   db.close();

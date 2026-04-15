@@ -23,6 +23,15 @@ const Teams = {
           entryCount: t.entry_count || 0,
           latestPhotoUuid: t.latest_photo_uuid || null,
           thumbnailSource: t.thumbnail_source || null,
+          opr: t.opr,
+          winRate: t.win_rate,
+          composite: t.composite,
+          tier: t.tier,
+          record: t.record,
+          sourceEvent: t.source_event,
+          rankAtEvent: t.rank_at_event,
+          rookieYear: t.rookie_year,
+          scoutingNotes: t.scouting_notes,
         }));
         // Cache in IndexedDB for offline use
         await DB.saveTeams(this._teams);

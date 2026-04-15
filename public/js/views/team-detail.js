@@ -18,6 +18,7 @@ const TeamDetailView = {
           </div>
         </div>
         <div id="team-all-photos"></div>
+        ${this._renderStats(team)}
         <a href="#/scout/${num}" class="btn btn-primary mt-8">Scout This Team</a>
       </div>
       <div id="team-entries">Loading...</div>
@@ -130,6 +131,32 @@ const TeamDetailView = {
     }
 
     container.innerHTML = html;
+  },
+
+  _renderStats(team) {
+    if (!team || team.opr == null) return '';
+
+    const tierColors = { elite: '#ffd700', strong: '#c0c0c0', average: '#cd7f32', below_avg: '#e0e0e0', developing: '#f5f5f5' };
+
+    let html = `<div style="margin-top:10px; padding:10px; background:var(--bg); border-radius:8px; border:1px solid var(--border);">`;
+    html += `<div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
+      <span style="font-size:14px; font-weight:700;">Stats</span>
+      ${team.tier ? `<span class="tier-badge tier-${team.tier}">${team.tier}</span>` : ''}
+      ${team.record ? `<span style="font-size:12px; color:var(--text-secondary);">${UI.esc(team.record)}</span>` : ''}
+    </div>`;
+
+    html += `<div class="stats-grid" style="grid-template-columns: repeat(4, 1fr); margin-bottom:8px;">`;
+    if (team.opr != null) html += `<div class="stat-card" style="padding:8px;"><div class="stat-value" style="font-size:20px;">${team.opr.toFixed(1)}</div><div class="stat-label">OPR</div></div>`;
+    if (team.winRate != null) html += `<div class="stat-card" style="padding:8px;"><div class="stat-value" style="font-size:20px;">${team.winRate.toFixed(0)}%</div><div class="stat-label">Win Rate</div></div>`;
+    if (team.composite != null) html += `<div class="stat-card" style="padding:8px;"><div class="stat-value" style="font-size:20px;">${team.composite.toFixed(0)}</div><div class="stat-label">Score</div></div>`;
+    if (team.rookieYear) html += `<div class="stat-card" style="padding:8px;"><div class="stat-value" style="font-size:20px;">${2026 - team.rookieYear}</div><div class="stat-label">Yrs Exp</div></div>`;
+    html += `</div>`;
+
+    if (team.sourceEvent) html += `<div style="font-size:12px; color:var(--text-secondary);">Source: ${UI.esc(team.sourceEvent)} ${team.rankAtEvent ? '(Rank ' + UI.esc(team.rankAtEvent) + ')' : ''}</div>`;
+    if (team.scoutingNotes) html += `<div style="font-size:13px; margin-top:4px; font-style:italic;">${UI.esc(team.scoutingNotes)}</div>`;
+
+    html += `</div>`;
+    return html;
   },
 
   _renderEntry(e, { roleColors, roleIcons, isLocal }) {

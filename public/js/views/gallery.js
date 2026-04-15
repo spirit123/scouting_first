@@ -128,6 +128,8 @@ const GalleryView = {
           <div class="team-number">${t.teamNumber}</div>
           <div class="team-name">${UI.esc(t.teamName)}</div>
           <div class="team-location">${UI.esc([t.city, t.state].filter(Boolean).join(', '))}</div>
+          ${t.opr != null ? `<div style="font-size:10px; font-weight:700; color:var(--accent);">OPR ${t.opr.toFixed(0)}</div>` : ''}
+          ${t.tier ? `<div class="tier-badge tier-${t.tier}">${t.tier}</div>` : ''}
           ${badge}
           ${t.entryCount ? `<div class="photo-count">${t.entryCount} entr${t.entryCount !== 1 ? 'ies' : 'y'}</div>` : ''}
         </a>`;
