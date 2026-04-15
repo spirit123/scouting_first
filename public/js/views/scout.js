@@ -135,12 +135,8 @@ const ScoutView = {
     const team = Teams.get(teamNumber);
     this._selectedTeam = team || { teamNumber };
 
-    // Reset form fields for the new team
-    this._selectedRole = null;
+    // Clear photo (can't restore blobs across team switches)
     this._removePhoto();
-    UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
-    UI.$('#entry-notes').value = '';
-    UI.$('#btn-save').disabled = true;
 
     // Update header
     UI.$('#team-search').value = `${teamNumber}`;
@@ -160,14 +156,12 @@ const ScoutView = {
       imgContainer.innerHTML = '';
     }
 
-    // Load existing scouting data for this team
-    await this._showExistingData(teamNumber);
+    // Load existing scouting data and pre-fill form from latest entry
+    await this._loadTeamData(teamNumber);
   },
 
-  async _showExistingData(teamNumber) {
-    const container = UI.$('#team-existing-data');
-
-    // Gather entries from local (unsynced) + server
+  async _loadTeamData(teamNumber) {
+    // Gather entries from local + server
     const localEntries = await DB.getEntriesByTeam(teamNumber);
     let serverEntries = [];
     try {
@@ -181,6 +175,47 @@ const ScoutView = {
       ...localEntries.filter(e => !serverUuids.has(e.uuid)),
       ...serverEntries,
     ];
+
+    // Show existing data panel
+    this._showExistingData(allEntries);
+
+    // Pre-fill form from the most recent entry
+    const latest = this._getLatestEntry(allEntries);
+    if (latest) {
+      const role = latest.role;
+      const notes = latest.notes || '';
+
+      // Set role
+      this._selectedRole = role;
+      UI.$$('.role-btn').forEach(b => {
+        b.classList.toggle('active', b.dataset.role === role);
+      });
+
+      // Set notes
+      UI.$('#entry-notes').value = notes;
+    } else {
+      // No existing data — reset form
+      this._selectedRole = null;
+      UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
+      UI.$('#entry-notes').value = '';
+    }
+
+    this._updateSaveButton();
+  },
+
+  _getLatestEntry(allEntries) {
+    if (allEntries.length === 0) return null;
+
+    // Sort by timestamp descending, preferring local entries (camelCase createdAt)
+    return allEntries.sort((a, b) => {
+      const timeA = a.createdAt || a.created_at || '';
+      const timeB = b.createdAt || b.created_at || '';
+      return timeB.localeCompare(timeA);
+    })[0];
+  },
+
+  _showExistingData(allEntries) {
+    const container = UI.$('#team-existing-data');
 
     if (allEntries.length === 0) {
       container.innerHTML = `<div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; font-style:italic;">No scouting data yet for this team.</div>`;
@@ -286,17 +321,13 @@ const ScoutView = {
       await DB.saveEntry(entry);
       UI.toast(`Saved entry for Team #${entry.teamNumber} (${entry.role})`, 'success');
 
-      // Reset form but keep team selected — scout might add another entry
-      this._selectedRole = null;
+      // Clear photo only, keep team selected
       this._removePhoto();
-      UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
-      UI.$('#entry-notes').value = '';
-      UI.$('#btn-save').disabled = true;
 
       App.updateQueueBadge();
 
-      // Refresh existing data to show the new entry
-      await this._showExistingData(this._selectedTeam.teamNumber);
+      // Reload team data — will refresh existing entries and pre-fill from latest
+      await this._loadTeamData(this._selectedTeam.teamNumber);
     } catch (err) {
       UI.toast('Failed to save: ' + err.message, 'error');
     }
