@@ -12,7 +12,7 @@ const ScoutView = {
     container.innerHTML = `
       ${this._preselectedTeam ? `<a href="#/team/${this._preselectedTeam}" class="btn btn-secondary btn-small mb-12" style="width:auto; display:inline-flex;">← Back to Team #${this._preselectedTeam}</a>` : ''}
       <div class="card">
-        <!-- Step 1: Team -->
+        <!-- Step 1: Team + Photo -->
         <div class="form-group">
           <label>1. Select Team</label>
           <div class="search-container">
@@ -24,8 +24,18 @@ const ScoutView = {
 
         <!-- Team info panel (shown after selecting a team) -->
         <div id="team-info-panel" class="hidden">
-          <div id="team-robot-img"></div>
-          <div id="team-existing-data"></div>
+          <div style="display:flex; gap:10px; align-items:flex-start;">
+            <div id="team-robot-img" style="flex-shrink:0;"></div>
+            <div style="flex:1; display:flex; flex-direction:column; gap:6px;">
+              <button id="btn-capture" class="btn btn-secondary btn-small">📷 Camera</button>
+              <button id="btn-gallery" class="btn btn-secondary btn-small">🖼️ Gallery</button>
+            </div>
+          </div>
+          <div id="photo-preview" class="mt-8" style="display:none; position:relative;">
+            <img id="preview-img" style="width:100%; max-height: 200px; object-fit: contain; border-radius: 8px;">
+            <button id="btn-remove-photo" style="position:absolute; top:4px; right:4px; background:var(--error); color:white; border:none; border-radius:50%; width:28px; height:28px; font-size:16px; cursor:pointer;">✕</button>
+          </div>
+          <div id="team-existing-data" class="mt-8"></div>
         </div>
 
         <!-- Step 2: Role -->
@@ -44,22 +54,9 @@ const ScoutView = {
           </div>
         </div>
 
-        <!-- Step 3: Photo (optional) -->
+        <!-- Step 3: Notes -->
         <div class="form-group">
-          <label>3. Photo (optional)</label>
-          <div style="display: flex; gap: 8px;">
-            <button id="btn-capture" class="btn btn-secondary" style="flex:1;">📷 Camera</button>
-            <button id="btn-gallery" class="btn btn-secondary" style="flex:1;">🖼️ Gallery</button>
-          </div>
-          <div id="photo-preview" class="mt-8" style="display:none; position:relative;">
-            <img id="preview-img" style="width:100%; max-height: 200px; object-fit: contain; border-radius: 8px;">
-            <button id="btn-remove-photo" style="position:absolute; top:4px; right:4px; background:var(--error); color:white; border:none; border-radius:50%; width:28px; height:28px; font-size:16px; cursor:pointer;">✕</button>
-          </div>
-        </div>
-
-        <!-- Step 4: Notes -->
-        <div class="form-group">
-          <label>4. Notes (optional)</label>
+          <label>3. Notes (optional)</label>
           <textarea id="entry-notes" placeholder="Robot features, strategy observations..."></textarea>
         </div>
 
@@ -246,14 +243,15 @@ const ScoutView = {
     const localWithPhoto = localEntries.find(e => e.imageBlob);
     const serverPhotoUuid = team && team.latestPhotoUuid ? team.latestPhotoUuid : null;
 
+    const imgStyle = 'width:120px; height:120px; object-fit:cover; border-radius:8px;';
     if (localWithPhoto) {
-      imgContainer.innerHTML = `<img src="${Camera.createPreviewURL(localWithPhoto.imageBlob)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+      imgContainer.innerHTML = `<img src="${Camera.createPreviewURL(localWithPhoto.imageBlob)}" alt="Team ${teamNumber}" style="${imgStyle}">`;
     } else if (serverPhotoUuid) {
-      imgContainer.innerHTML = `<img src="/api/entries/${encodeURIComponent(serverPhotoUuid)}/image" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+      imgContainer.innerHTML = `<img src="/api/entries/${encodeURIComponent(serverPhotoUuid)}/image" alt="Team ${teamNumber}" style="${imgStyle}">`;
     } else if (team && team.robotImageUrl) {
-      imgContainer.innerHTML = `<img src="${UI.esc(team.robotImageUrl)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+      imgContainer.innerHTML = `<img src="${UI.esc(team.robotImageUrl)}" alt="Team ${teamNumber}" style="${imgStyle}">`;
     } else {
-      imgContainer.innerHTML = '';
+      imgContainer.innerHTML = `<div style="width:120px;height:120px;background:var(--border);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:32px;">📷</div>`;
     }
 
     // Show existing data panel
