@@ -33,6 +33,18 @@ CREATE TABLE IF NOT EXISTS entries (
 CREATE INDEX IF NOT EXISTS idx_entries_team ON entries(team_number);
 CREATE INDEX IF NOT EXISTS idx_entries_scout ON entries(scout_name);
 
+CREATE TABLE IF NOT EXISTS scouts (
+    name TEXT PRIMARY KEY
+);
+
+CREATE TABLE IF NOT EXISTS assignments (
+    team_number INTEGER NOT NULL,
+    scout_name  TEXT NOT NULL,
+    PRIMARY KEY (team_number, scout_name),
+    FOREIGN KEY (team_number) REFERENCES teams(team_number),
+    FOREIGN KEY (scout_name) REFERENCES scouts(name)
+);
+
 `;
 
 function persist() {

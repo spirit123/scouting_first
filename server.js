@@ -8,6 +8,7 @@ const apiEntries = require('./routes/api-photos');
 const apiSync = require('./routes/api-sync');
 const apiExport = require('./routes/api-export');
 const apiStatus = require('./routes/api-status');
+const apiScouts = require('./routes/api-scouts');
 
 async function start() {
   await db.init();
@@ -24,6 +25,7 @@ async function start() {
   app.use('/api/sync', apiSync);
   app.use('/api/export', apiExport);
   app.use('/api/status', apiStatus);
+  app.use('/api/scouts', apiScouts);
 
   // SPA fallback — serve index.html for all non-API, non-static routes
   app.get('*', (req, res) => {

@@ -71,6 +71,9 @@ const App = {
     } else if (hash === '#/export') {
       ExportView.render(container);
       this._currentView = 'export';
+    } else if (hash === '#/admin') {
+      AdminView.render(container);
+      this._currentView = 'admin';
     } else if (hash === '#/settings') {
       SettingsView.render(container);
       this._currentView = 'settings';

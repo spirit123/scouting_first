@@ -34,7 +34,6 @@ async function seed() {
 
   console.log(`Seeding ${teams.length} teams...`);
 
-  db.run('DELETE FROM entries');
   db.run('DELETE FROM teams');
 
   for (const t of teams) {
