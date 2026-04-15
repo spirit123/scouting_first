@@ -18,6 +18,7 @@ const TeamDetailView = {
           </div>
         </div>
         ${robotImg ? `<img src="${UI.esc(robotImg)}" alt="Team ${num} robot" style="width:100%; max-height:250px; object-fit:contain; border-radius:8px; margin-top:10px;">` : ''}
+        <a href="#/scout/${num}" class="btn btn-primary mt-8">Scout This Team</a>
       </div>
       <div id="team-entries">Loading...</div>
     `;

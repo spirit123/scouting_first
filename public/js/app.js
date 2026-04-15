@@ -59,6 +59,11 @@ const App = {
       const teamNum = hash.split('/')[2];
       TeamDetailView.render(container, teamNum);
       this._currentView = 'team-detail';
+    } else if (hash.startsWith('#/scout/')) {
+      const teamNum = parseInt(hash.split('/')[2], 10);
+      ScoutView.render(container);
+      if (teamNum) setTimeout(() => ScoutView._selectTeam(teamNum), 100);
+      this._currentView = 'scout';
     } else if (hash === '#/scout') {
       ScoutView.render(container);
       this._currentView = 'scout';
