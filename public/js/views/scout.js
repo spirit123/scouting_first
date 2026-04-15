@@ -6,8 +6,11 @@ const ScoutView = {
   _photoURL: null,
   _assignments: [],
 
-  render(container) {
+  render(container, preselectedTeam) {
+    this._preselectedTeam = preselectedTeam || null;
+
     container.innerHTML = `
+      ${this._preselectedTeam ? `<a href="#/team/${this._preselectedTeam}" class="btn btn-secondary btn-small mb-12" style="width:auto; display:inline-flex;">← Back to Team #${this._preselectedTeam}</a>` : ''}
       <div class="card">
         <!-- Step 1: Team -->
         <div class="form-group">
@@ -65,7 +68,9 @@ const ScoutView = {
     `;
 
     this._bindEvents();
-    this._loadAssignments();
+    this._loadAssignments().then(() => {
+      if (this._preselectedTeam) this._selectTeam(this._preselectedTeam);
+    });
   },
 
   async _loadAssignments() {
