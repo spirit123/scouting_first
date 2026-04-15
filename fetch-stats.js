@@ -2,8 +2,6 @@
 // Usage: TBA_KEY=your_api_key node fetch-stats.js
 //
 // Get your free API key at: https://www.thebluealliance.com/account
-// Set it as: TBA_KEY=xxxx node fetch-stats.js
-// Or create a .env file with: TBA_KEY=xxxx
 
 const fs = require('fs');
 const path = require('path');
@@ -13,6 +11,7 @@ const config = require('./config');
 const TBA_KEY = process.env.TBA_KEY || '';
 const TBA_BASE = 'https://www.thebluealliance.com/api/v3';
 const YEAR = process.env.TBA_YEAR || '2025';
+const CONCURRENCY = 10; // parallel requests
 
 if (!TBA_KEY) {
   console.error('ERROR: TBA API key required.');
@@ -31,25 +30,16 @@ function tbaFetch(endpoint) {
     };
 
     https.get(opts, (res) => {
-      if (res.statusCode === 401) {
-        reject(new Error('Invalid TBA API key'));
-        return;
-      }
+      if (res.statusCode === 401) { reject(new Error('Invalid TBA API key')); return; }
+      if (res.statusCode === 404) { resolve(null); return; }
       let data = '';
       res.on('data', chunk => data += chunk);
       res.on('end', () => {
-        try {
-          resolve(JSON.parse(data));
-        } catch (e) {
-          reject(new Error(`Failed to parse response for ${endpoint}: ${data.slice(0, 200)}`));
-        }
+        try { resolve(JSON.parse(data)); }
+        catch (e) { reject(new Error(`Parse error for ${endpoint}`)); }
       });
     }).on('error', reject);
   });
-}
-
-function sleep(ms) {
-  return new Promise(r => setTimeout(r, ms));
 }
 
 function tierFromComposite(c) {
@@ -58,6 +48,17 @@ function tierFromComposite(c) {
   if (c >= 40) return 'average';
   if (c >= 25) return 'below_avg';
   return 'developing';
+}
+
+// Run promises in batches of `limit`
+async function parallel(items, fn, limit) {
+  const results = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    const batchResults = await Promise.all(batch.map(fn));
+    results.push(...batchResults);
+  }
+  return results;
 }
 
 async function run() {
@@ -70,172 +71,159 @@ async function run() {
 
   const raw = fs.readFileSync(teamsFile, 'utf-8');
   const lines = raw.trim().split('\n').filter(l => l.trim());
-  const header = lines[0].split(',').map(h => h.trim());
   const teamNumbers = lines.slice(1).map(line => {
-    const vals = line.split(',');
-    return parseInt(vals[0].trim(), 10);
+    return parseInt(line.split(',')[0].trim(), 10);
   }).filter(n => !isNaN(n));
 
-  console.log(`Fetching stats for ${teamNumbers.length} teams (year: ${YEAR})...\n`);
+  console.log(`Fetching stats for ${teamNumbers.length} teams (year: ${YEAR}, concurrency: ${CONCURRENCY})...\n`);
 
-  const stats = [];
-  let fetched = 0;
-
-  for (const num of teamNumbers) {
-    fetched++;
-    process.stdout.write(`[${fetched}/${teamNumbers.length}] Team ${num}... `);
-
+  // Step 1: Fetch all team info + events in parallel
+  console.log('Step 1/3: Fetching team info + events...');
+  const teamData = await parallel(teamNumbers, async (num) => {
     try {
-      // Get team info (rookie year, etc.)
-      const teamInfo = await tbaFetch(`/team/frc${num}`);
-      const rookieYear = teamInfo.rookie_year || null;
-
-      // Get team's events for this year
-      const events = await tbaFetch(`/team/frc${num}/events/${YEAR}`);
-      const completedEvents = events
-        .filter(e => e.event_type <= 5) // regionals, districts, etc. (not offseason)
-        .filter(e => {
-          // Check if event has ended (end_date in the past)
-          if (!e.end_date) return false;
-          return new Date(e.end_date) < new Date();
-        })
-        .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
-
-      if (completedEvents.length === 0) {
-        console.log('no completed events');
-        // Still save basic info
-        stats.push({
-          team_number: num,
-          opr: null,
-          win_rate: null,
-          avg_score: null,
-          avg_rp: null,
-          composite: rookieYear ? Math.min(35, 22 + (2026 - rookieYear) * 0.6) : 22,
-          tier: 'developing',
-          record: null,
-          source_event: null,
-          rank_at_event: null,
-          rookie_year: rookieYear,
-          scouting_notes: completedEvents.length === 0 ? 'No completed events this season' : '',
-        });
-        await sleep(200);
-        continue;
-      }
-
-      // Use the most recent completed event
-      const latestEvent = completedEvents[0];
-      const eventKey = latestEvent.key;
-      const eventName = latestEvent.short_name || latestEvent.name;
-
-      // Get OPR for this event
-      let opr = null;
-      try {
-        const oprs = await tbaFetch(`/event/${eventKey}/oprs`);
-        if (oprs && oprs.oprs && oprs.oprs[`frc${num}`] != null) {
-          opr = Math.round(oprs.oprs[`frc${num}`] * 100) / 100;
-        }
-      } catch (e) {}
-
-      // Get rankings for this event
-      let record = null;
-      let rank = null;
-      let totalTeams = null;
-      let avgRp = null;
-      try {
-        const rankings = await tbaFetch(`/event/${eventKey}/rankings`);
-        if (rankings && rankings.rankings) {
-          totalTeams = rankings.rankings.length;
-          const teamRank = rankings.rankings.find(r => r.team_key === `frc${num}`);
-          if (teamRank) {
-            rank = teamRank.rank;
-            const rec = teamRank.record;
-            if (rec) record = `${rec.wins}-${rec.losses}-${rec.ties}`;
-            if (teamRank.sort_orders && teamRank.sort_orders.length > 0) {
-              avgRp = Math.round(teamRank.sort_orders[0] * 100) / 100;
-            }
-          }
-        }
-      } catch (e) {}
-
-      // Calculate win rate from record
-      let winRate = null;
-      if (record) {
-        const parts = record.split('-').map(Number);
-        const total = parts[0] + parts[1] + parts[2];
-        if (total > 0) winRate = Math.round(((parts[0] + 0.5 * parts[2]) / total) * 1000) / 10;
-      }
-
-      // Calculate composite score (simplified)
-      let composite = 30; // base
-      if (opr != null) {
-        // Normalize OPR: assume max ~200, scale to 0-100
-        composite = Math.min(100, Math.max(0, (opr / 200) * 100)) * 0.35;
-      }
-      if (winRate != null) {
-        composite += (winRate / 100) * 0.20 * 100;
-      }
-      if (rank != null && totalTeams) {
-        const rankPct = (1 - (rank - 1) / Math.max(1, totalTeams - 1)) * 100;
-        composite += rankPct * 0.10;
-      }
-      if (avgRp != null) {
-        // Normalize RP: max ~4.5, scale to 0-100
-        composite += Math.min(100, (avgRp / 4.5) * 100) * 0.10;
-      }
-      if (rookieYear) {
-        const experience = Math.min(30, 2026 - rookieYear);
-        composite += (experience / 30) * 100 * 0.05;
-      }
-      if (completedEvents.length > 1) {
-        composite += Math.min(100, completedEvents.length * 33) * 0.05;
-      }
-      composite = Math.round(composite * 10) / 10;
-
-      const tier = tierFromComposite(composite);
-
-      // Build scouting notes
-      const notes = [];
-      if (completedEvents.length > 1) notes.push(`${completedEvents.length} events played`);
-      if (rookieYear === parseInt(YEAR)) notes.push('ROOKIE');
-      if (opr != null && opr > 150) notes.push('Elite scorer');
-      if (opr != null && opr < 0) notes.push('Negative OPR');
-      if (winRate != null && winRate >= 80) notes.push('Dominant record');
-
-      const rankStr = rank && totalTeams ? `${rank}/${totalTeams}` : null;
-
-      console.log(`OPR=${opr || '?'}, ${record || '?'}, ${tier} (${composite})`);
-
-      stats.push({
-        team_number: num,
-        opr,
-        win_rate: winRate,
-        avg_score: null,
-        avg_rp: avgRp,
-        composite,
-        tier,
-        record,
-        source_event: eventName,
-        rank_at_event: rankStr,
-        rookie_year: rookieYear,
-        scouting_notes: notes.join('. '),
-      });
-
-    } catch (err) {
-      console.log(`ERROR: ${err.message}`);
-      stats.push({
-        team_number: num,
-        opr: null, win_rate: null, avg_score: null, avg_rp: null,
-        composite: 25, tier: 'developing', record: null,
-        source_event: null, rank_at_event: null, rookie_year: null,
-        scouting_notes: `Fetch error: ${err.message}`,
-      });
+      const [info, events] = await Promise.all([
+        tbaFetch(`/team/frc${num}`),
+        tbaFetch(`/team/frc${num}/events/${YEAR}`),
+      ]);
+      return { num, info, events: events || [] };
+    } catch (e) {
+      return { num, info: null, events: [], error: e.message };
     }
+  }, CONCURRENCY);
+  console.log(`  Got info for ${teamData.filter(t => t.info).length} teams`);
 
-    // Rate limit: TBA allows ~10 req/sec, we do ~3 per team
-    await sleep(300);
+  // Step 2: Identify unique events and fetch OPR + rankings once per event
+  console.log('Step 2/3: Fetching event OPRs + rankings...');
+  const eventKeys = new Set();
+  const teamEventMap = {}; // team_number -> latest event key
+
+  for (const t of teamData) {
+    const completed = t.events
+      .filter(e => e.event_type <= 5 && e.end_date && new Date(e.end_date) < new Date())
+      .sort((a, b) => new Date(b.end_date) - new Date(a.end_date));
+
+    if (completed.length > 0) {
+      const latest = completed[0];
+      teamEventMap[t.num] = {
+        key: latest.key,
+        name: latest.short_name || latest.name,
+        eventsPlayed: completed.length,
+      };
+      eventKeys.add(latest.key);
+    }
   }
 
-  // Write output
+  // Fetch OPR and rankings for each unique event (much fewer than 75)
+  const eventOPRs = {};   // event_key -> { frcNNN: opr }
+  const eventRanks = {};  // event_key -> { frcNNN: { rank, record, avgRp, total } }
+
+  const uniqueEvents = [...eventKeys];
+  console.log(`  ${uniqueEvents.length} unique events to fetch`);
+
+  await parallel(uniqueEvents, async (eventKey) => {
+    try {
+      const [oprs, rankings] = await Promise.all([
+        tbaFetch(`/event/${eventKey}/oprs`),
+        tbaFetch(`/event/${eventKey}/rankings`),
+      ]);
+
+      if (oprs && oprs.oprs) eventOPRs[eventKey] = oprs.oprs;
+
+      if (rankings && rankings.rankings) {
+        const total = rankings.rankings.length;
+        eventRanks[eventKey] = {};
+        for (const r of rankings.rankings) {
+          const rec = r.record;
+          eventRanks[eventKey][r.team_key] = {
+            rank: r.rank,
+            total,
+            record: rec ? `${rec.wins}-${rec.losses}-${rec.ties}` : null,
+            wins: rec ? rec.wins : 0,
+            losses: rec ? rec.losses : 0,
+            ties: rec ? rec.ties : 0,
+            avgRp: r.sort_orders && r.sort_orders.length > 0
+              ? Math.round(r.sort_orders[0] * 100) / 100 : null,
+          };
+        }
+      }
+    } catch (e) {
+      console.log(`  Warning: failed to fetch ${eventKey}: ${e.message}`);
+    }
+  }, CONCURRENCY);
+
+  // Step 3: Build stats for each team
+  console.log('Step 3/3: Computing stats...\n');
+  const stats = [];
+
+  for (const t of teamData) {
+    const num = t.num;
+    const rookieYear = t.info ? t.info.rookie_year : null;
+    const evtInfo = teamEventMap[num];
+
+    if (!evtInfo) {
+      // No completed events
+      stats.push({
+        team_number: num, opr: null, win_rate: null, avg_score: null, avg_rp: null,
+        composite: rookieYear ? Math.min(35, 22 + (2026 - rookieYear) * 0.6) : 22,
+        tier: 'developing', record: null, source_event: null, rank_at_event: null,
+        rookie_year: rookieYear,
+        scouting_notes: t.error ? `Fetch error: ${t.error}` : 'No completed events this season',
+      });
+      continue;
+    }
+
+    const oprData = eventOPRs[evtInfo.key] || {};
+    const rankData = (eventRanks[evtInfo.key] || {})[`frc${num}`] || {};
+
+    const opr = oprData[`frc${num}`] != null ? Math.round(oprData[`frc${num}`] * 100) / 100 : null;
+    const record = rankData.record || null;
+    const rank = rankData.rank || null;
+    const totalTeams = rankData.total || null;
+    const avgRp = rankData.avgRp || null;
+
+    let winRate = null;
+    if (record) {
+      const total = rankData.wins + rankData.losses + rankData.ties;
+      if (total > 0) winRate = Math.round(((rankData.wins + 0.5 * rankData.ties) / total) * 1000) / 10;
+    }
+
+    // Composite score
+    let composite = 0;
+    if (opr != null) composite += Math.min(100, Math.max(0, (opr / 200) * 100)) * 0.35;
+    else composite += 15 * 0.35;
+    if (winRate != null) composite += (winRate / 100) * 0.20 * 100;
+    else composite += 25 * 0.20;
+    if (rank != null && totalTeams) {
+      composite += (1 - (rank - 1) / Math.max(1, totalTeams - 1)) * 100 * 0.10;
+    } else { composite += 25 * 0.10; }
+    if (avgRp != null) composite += Math.min(100, (avgRp / 4.5) * 100) * 0.10;
+    else composite += 25 * 0.10;
+    if (rookieYear) composite += (Math.min(30, 2026 - rookieYear) / 30) * 100 * 0.05;
+    if (evtInfo.eventsPlayed > 1) composite += Math.min(100, evtInfo.eventsPlayed * 33) * 0.05;
+    composite = Math.round(composite * 10) / 10;
+
+    const tier = tierFromComposite(composite);
+
+    // Auto notes
+    const notes = [];
+    if (evtInfo.eventsPlayed > 1) notes.push(`${evtInfo.eventsPlayed} events played`);
+    if (rookieYear && rookieYear >= parseInt(YEAR)) notes.push('ROOKIE');
+    if (opr != null && opr > 150) notes.push('Elite scorer');
+    if (opr != null && opr < 0) notes.push('Negative OPR');
+    if (winRate != null && winRate >= 80) notes.push('Dominant record');
+
+    const rankStr = rank && totalTeams ? `${rank}/${totalTeams}` : null;
+
+    console.log(`  #${num}: OPR=${opr || '?'}, ${record || '?'}, ${tier} (${composite})`);
+
+    stats.push({
+      team_number: num, opr, win_rate: winRate, avg_score: null, avg_rp: avgRp,
+      composite, tier, record, source_event: evtInfo.name,
+      rank_at_event: rankStr, rookie_year: rookieYear,
+      scouting_notes: notes.join('. '),
+    });
+  }
+
   const outFile = path.join(__dirname, 'team_stats.json');
   fs.writeFileSync(outFile, JSON.stringify(stats, null, 2));
   console.log(`\nDone! Wrote ${stats.length} team stats to ${outFile}`);
