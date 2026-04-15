@@ -17,6 +17,8 @@ const Teams = {
           school: t.school,
           city: t.city,
           state: t.state,
+          country: t.country,
+          robotImageUrl: t.robot_image_url || null,
           photoCount: t.photo_count || 0,
         }));
         // Cache in IndexedDB for offline use

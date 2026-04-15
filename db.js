@@ -8,12 +8,13 @@ let persistTimer = null;
 
 const SCHEMA = `
 CREATE TABLE IF NOT EXISTS teams (
-    team_number INTEGER PRIMARY KEY,
-    team_name   TEXT NOT NULL,
-    school      TEXT,
-    city        TEXT,
-    state       TEXT,
-    country     TEXT DEFAULT 'USA'
+    team_number     INTEGER PRIMARY KEY,
+    team_name       TEXT NOT NULL,
+    school          TEXT,
+    city            TEXT,
+    state           TEXT,
+    country         TEXT DEFAULT 'USA',
+    robot_image_url TEXT
 );
 
 CREATE TABLE IF NOT EXISTS photos (

@@ -4,7 +4,8 @@ const TeamDetailView = {
     const num = parseInt(teamNumber, 10);
     const team = Teams.get(num);
     const teamName = team ? team.teamName : 'Unknown Team';
-    const teamInfo = team ? [team.school, team.city, team.state].filter(Boolean).join(', ') : '';
+    const teamInfo = team ? [team.city, team.state, team.country].filter(Boolean).join(', ') : '';
+    const robotImg = team ? team.robotImageUrl : null;
 
     container.innerHTML = `
       <div class="card">
@@ -16,6 +17,7 @@ const TeamDetailView = {
             ${teamInfo ? `<div style="font-size:12px; color:var(--text-secondary);">${UI.esc(teamInfo)}</div>` : ''}
           </div>
         </div>
+        ${robotImg ? `<img src="${UI.esc(robotImg)}" alt="Team ${num} robot" style="width:100%; max-height:250px; object-fit:contain; border-radius:8px; margin-top:10px;">` : ''}
       </div>
       <div id="team-photos">Loading...</div>
     `;

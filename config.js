@@ -5,6 +5,6 @@ module.exports = {
   host: process.env.HOST || '0.0.0.0',
   dbPath: path.join(__dirname, 'data', 'scout.db'),
   uploadsDir: path.join(__dirname, 'uploads'),
-  teamsFile: path.join(__dirname, 'teams.json'),
+  teamsFile: path.join(__dirname, '2025gal_team_list.csv'),
   maxFileSize: 10 * 1024 * 1024, // 10MB per file
 };

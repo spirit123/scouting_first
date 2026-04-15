@@ -31,8 +31,10 @@ const GalleryView = {
     container.innerHTML = `<div class="team-grid">
       ${teams.map(t => `
         <a href="#/team/${t.teamNumber}" class="team-card">
+          ${t.robotImageUrl ? `<img src="${UI.esc(t.robotImageUrl)}" alt="Team ${t.teamNumber}" class="team-card-img" loading="lazy">` : ''}
           <div class="team-number">${t.teamNumber}</div>
           <div class="team-name">${UI.esc(t.teamName)}</div>
+          <div class="team-location">${UI.esc([t.city, t.state].filter(Boolean).join(', '))}</div>
           ${t.photoCount ? `<div class="photo-count">${t.photoCount} photo${t.photoCount !== 1 ? 's' : ''}</div>` : ''}
         </a>
       `).join('')}
