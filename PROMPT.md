@@ -25,16 +25,34 @@ Build a mobile-first scouting app for FIRST robotics competitions (FRC). The app
 
 ### Team Data
 
-- Teams are loaded from a CSV file (`2025gal_team_list.csv`) with columns: `team_number,team_name,city,state_prov,country,robot_image_url`
-- A `seed-teams.js` script imports the CSV into SQLite
-- ~75 teams with pre-loaded robot images from imgur
-- A `fetch-stats.js` script pulls performance data from **The Blue Alliance API** (free key required from https://www.thebluealliance.com/account)
-- Stats are stored in `team_stats.json` and loaded during seed
+- Teams can be imported directly from a TBA event or loaded from a CSV file
+- A `seed-teams.js` script imports teams + stats into SQLite
+- Two TBA integration scripts (free API key from https://www.thebluealliance.com/account):
+  - `fetch-event.js` — imports team list + stats from a specific event (replaces CSV)
+  - `fetch-stats.js` — fetches stats only for an existing team list
 
-### Team Stats (The Blue Alliance Integration)
+### The Blue Alliance Integration
 
-`fetch-stats.js` fetches for each team from their most recent completed event:
-- **OPR** (Offensive Power Rating) from the event's OPR endpoint
+#### `fetch-event.js` — Full event import (recommended)
+
+One command to set up scouting for any FRC event:
+- `TBA_KEY=xxx node fetch-event.js 2026nvlv` — direct with event key
+- `TBA_KEY=xxx node fetch-event.js` — interactive, lists recent/upcoming events to choose from
+- `EVENT=2026nvlv TBA_KEY=xxx bash scripts/update.sh` — integrated with update script
+
+What it does:
+1. Fetches **team list** from the event (generates the CSV)
+2. Fetches **OPR + rankings** from the event (if matches have started)
+3. For teams without data at this event, fetches from their **most recent prior event**
+4. Generates both the team list CSV and `team_stats.json`
+5. All parallel with deduplication
+
+#### `fetch-stats.js` — Stats only (for existing team list)
+
+`TBA_KEY=xxx node fetch-stats.js` — fetches stats for teams already in the CSV.
+
+#### Stats data per team
+- **OPR** (Offensive Power Rating) from event OPR endpoint
 - **Rankings**: rank, record (W-L-T), average RP per match
 - **Win rate**: calculated from record
 - **Rookie year**: from team info endpoint
@@ -42,10 +60,7 @@ Build a mobile-first scouting app for FIRST robotics competitions (FRC). The app
 - **Tier**: auto-calculated from composite — elite (70+), strong (55-69), average (40-54), below_avg (25-39), developing (<25)
 - **Auto-generated scouting notes**: rookie, elite scorer, negative OPR, multi-event, etc.
 
-Rate-limited to ~3 requests/team with 300ms sleep. Teams with no completed events get a base estimate from rookie year.
-
-Usage: `TBA_KEY=your_key node fetch-stats.js && node seed-teams.js`
-Or integrated: `TBA_KEY=your_key bash scripts/update.sh`
+Parallel fetching (concurrency 10) with event-level deduplication. Teams with no completed events get a base estimate from rookie year.
 
 ### Database Schema (Server — SQLite)
 
@@ -102,13 +117,15 @@ The form is 3 steps (photo capture is integrated into step 1 alongside the team 
 4. `#/scout/:num` — Scout form with team pre-selected + "Back to Team #N" button
 5. `#/queue` — Pending uploads list, "Sync All" button with progress bar
 6. `#/export` — Stats, CSV/HTML/JSON download
-7. `#/admin` — Scout management, auto-assign, progress dashboard
-8. `#/settings` — Scout name, server IP/port, test connection, debug toggle, clear data
+7. `#/alliances` — Alliance selection: serpentine draft, filter by role (scorer/feeder/defender), sort by OPR/composite/win rate, undo, combined OPR per alliance, persisted in localStorage
+8. `#/admin` — Scout management, auto-assign, progress dashboard
+9. `#/settings` — Scout name, server IP/port, test connection, debug toggle, clear data
 
 ### Navigation
 
 - Bottom tab bar order: **Teams (🤖), Scout (📷), Queue (📤), Settings (⚙️)**
 - App opens on Teams view by default
+- Alliances accessible from Teams > Alliances button
 - Admin accessible from Teams > Manage button
 - Export accessible from Teams > Export button
 

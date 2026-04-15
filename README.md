@@ -24,7 +24,14 @@ Offline-first scouting app for FIRST robotics competitions. Scouts use their pho
 
 ```bash
 npm install
+
+# Option A: Import teams from a TBA event (recommended)
+TBA_KEY=your_key node fetch-event.js 2026nvlv
 node seed-teams.js
+
+# Option B: Use an existing CSV team list
+node seed-teams.js
+
 node server.js
 # Open http://localhost:3000
 ```
@@ -72,22 +79,37 @@ bash scripts/update.sh
 bash scripts/start.sh
 ```
 
-## Fetching Team Stats
+## Setting Up an Event
 
-The app can pull OPR, rankings, win rate, and scouting data from [The Blue Alliance](https://www.thebluealliance.com/) API.
+The easiest way to set up scouting for a competition. Get a free TBA API key at **https://www.thebluealliance.com/account**.
 
-1. Get a free API key at **https://www.thebluealliance.com/account**
-2. Run:
-   ```bash
-   TBA_KEY=your_key_here node fetch-stats.js
-   node seed-teams.js
-   ```
-
-This fetches each team's most recent event data: OPR, record, rank, average RP, and calculates a composite score and tier (elite/strong/average/below_avg/developing). Teams with no completed events get a base estimate.
-
-To refresh stats and update in one step:
+### Import an event by key
 ```bash
-TBA_KEY=your_key bash scripts/update.sh && bash scripts/start.sh
+TBA_KEY=your_key node fetch-event.js 2026nvlv
+node seed-teams.js
+```
+
+### Browse and pick an event interactively
+```bash
+TBA_KEY=your_key node fetch-event.js
+# Lists recent/upcoming events, pick one
+```
+
+### One-liner with update script
+```bash
+EVENT=2026nvlv TBA_KEY=your_key bash scripts/update.sh && bash scripts/start.sh
+```
+
+This fetches from [The Blue Alliance](https://www.thebluealliance.com/):
+- **Team list** from the event (replaces the CSV)
+- **OPR + rankings** from the event (if matches have started)
+- **Prior event data** for teams without current event stats
+- **Composite score and tier** calculated automatically
+
+### Refresh stats only (keep existing team list)
+```bash
+TBA_KEY=your_key node fetch-stats.js
+node seed-teams.js
 ```
 
 ## Scripts
@@ -95,9 +117,10 @@ TBA_KEY=your_key bash scripts/update.sh && bash scripts/start.sh
 | Script | Purpose |
 |--------|---------|
 | `scripts/start.sh` | Start server with IP auto-detection + wake-lock |
-| `scripts/update.sh` | Pull latest code, reset DB, reseed teams (+ fetch stats if TBA_KEY set) |
+| `scripts/update.sh` | Pull latest code, reset DB, reseed (+ fetch event if EVENT+TBA_KEY set) |
 | `scripts/setup-termux.sh` | Full one-time Termux setup |
-| `node fetch-stats.js` | Fetch team stats from The Blue Alliance API |
+| `node fetch-event.js [key]` | Import teams + stats from a TBA event (interactive if no key) |
+| `node fetch-stats.js` | Fetch stats only for existing team list from TBA |
 | `node seed-teams.js` | Import teams + stats into database |
 | `node test.js` | Run diagnostic tests (server must be running) |
 
