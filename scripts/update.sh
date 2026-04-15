@@ -18,8 +18,11 @@ echo "=== Installing dependencies ==="
 npm install
 
 echo ""
-# Optionally fetch fresh stats from TBA
-if [ -n "$TBA_KEY" ]; then
+# Optionally fetch event data from TBA
+if [ -n "$TBA_KEY" ] && [ -n "$EVENT" ]; then
+  echo "=== Fetching event $EVENT from The Blue Alliance ==="
+  TBA_KEY="$TBA_KEY" node fetch-event.js "$EVENT"
+elif [ -n "$TBA_KEY" ]; then
   echo "=== Fetching team stats from The Blue Alliance ==="
   TBA_KEY="$TBA_KEY" node fetch-stats.js
 fi
