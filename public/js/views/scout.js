@@ -18,6 +18,12 @@ const ScoutView = {
           <div id="selected-team" class="mt-8" style="font-weight:600; color: var(--accent);"></div>
         </div>
 
+        <!-- Team info panel (shown after selecting a team) -->
+        <div id="team-info-panel" class="hidden">
+          <div id="team-robot-img"></div>
+          <div id="team-existing-data"></div>
+        </div>
+
         <!-- Step 2: Role -->
         <div class="form-group">
           <label>2. Robot Role</label>
@@ -55,19 +61,15 @@ const ScoutView = {
 
         <button id="btn-save" class="btn btn-success" disabled>Save Entry</button>
       </div>
-
-      <div id="recent-entries" class="mt-16"></div>
     `;
 
     this._bindEvents();
-    this._showRecentEntries();
   },
 
   _bindEvents() {
     const searchInput = UI.$('#team-search');
     const resultsDiv = UI.$('#team-results');
 
-    // Team search
     let debounce;
     searchInput.addEventListener('input', () => {
       clearTimeout(debounce);
@@ -129,14 +131,111 @@ const ScoutView = {
     });
   },
 
-  _selectTeam(teamNumber) {
+  async _selectTeam(teamNumber) {
     const team = Teams.get(teamNumber);
     this._selectedTeam = team || { teamNumber };
+
+    // Reset form fields for the new team
+    this._selectedRole = null;
+    this._removePhoto();
+    UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
+    UI.$('#entry-notes').value = '';
+    UI.$('#btn-save').disabled = true;
+
+    // Update header
     UI.$('#team-search').value = `${teamNumber}`;
     UI.$('#selected-team').textContent = team
       ? `#${team.teamNumber} — ${team.teamName}`
       : `Team #${teamNumber}`;
-    this._updateSaveButton();
+
+    // Show team info panel
+    const panel = UI.$('#team-info-panel');
+    panel.classList.remove('hidden');
+
+    // Show robot image if available
+    const imgContainer = UI.$('#team-robot-img');
+    if (team && team.robotImageUrl) {
+      imgContainer.innerHTML = `<img src="${UI.esc(team.robotImageUrl)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+    } else {
+      imgContainer.innerHTML = '';
+    }
+
+    // Load existing scouting data for this team
+    await this._showExistingData(teamNumber);
+  },
+
+  async _showExistingData(teamNumber) {
+    const container = UI.$('#team-existing-data');
+
+    // Gather entries from local (unsynced) + server
+    const localEntries = await DB.getEntriesByTeam(teamNumber);
+    let serverEntries = [];
+    try {
+      const res = await fetch(`/api/entries?team=${teamNumber}`);
+      if (res.ok) serverEntries = await res.json();
+    } catch (e) {}
+
+    // Merge: local unsynced + server (avoid duplicates by uuid)
+    const serverUuids = new Set(serverEntries.map(e => e.uuid));
+    const allEntries = [
+      ...localEntries.filter(e => !serverUuids.has(e.uuid)),
+      ...serverEntries,
+    ];
+
+    if (allEntries.length === 0) {
+      container.innerHTML = `<div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px; font-style:italic;">No scouting data yet for this team.</div>`;
+      return;
+    }
+
+    const roleColors = { scorer: '#4caf50', feeder: '#2196f3', defender: '#ff9800' };
+    const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
+
+    // Summarize roles
+    const roles = allEntries.map(e => e.role || (e.role)).filter(Boolean);
+    const roleCounts = {};
+    for (const r of roles) {
+      roleCounts[r] = (roleCounts[r] || 0) + 1;
+    }
+
+    let html = `<div class="existing-data-panel">`;
+    html += `<div style="font-size:13px; font-weight:600; margin-bottom:6px;">Previous entries (${allEntries.length}):</div>`;
+
+    // Role summary badges
+    if (Object.keys(roleCounts).length > 0) {
+      html += `<div style="display:flex; gap:6px; flex-wrap:wrap; margin-bottom:8px;">`;
+      for (const [role, count] of Object.entries(roleCounts)) {
+        const color = roleColors[role] || '#999';
+        html += `<span style="display:inline-flex; align-items:center; gap:4px; padding:3px 10px; border-radius:12px; background:${color}20; color:${color}; font-size:12px; font-weight:600;">
+          ${roleIcons[role] || ''} ${role} ×${count}
+        </span>`;
+      }
+      html += `</div>`;
+    }
+
+    // Individual entries
+    for (const e of allEntries) {
+      const isLocal = !!e.createdAt; // local entries use camelCase
+      const role = e.role;
+      const scout = (isLocal ? e.scoutName : e.scout_name) || 'Unknown';
+      const notes = e.notes || '';
+      const time = isLocal ? e.createdAt : e.created_at;
+      const synced = isLocal ? e.synced : true;
+      const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
+      const color = roleColors[role] || '#999';
+
+      html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
+        <div style="display:flex; align-items:center; gap:6px;">
+          ${role ? `<span style="color:${color}; font-weight:600;">${roleIcons[role] || ''} ${role}</span>` : ''}
+          <span style="color:var(--text-secondary);">· ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
+          ${hasPhoto ? '<span title="Has photo">📷</span>' : ''}
+          ${!synced ? '<span style="color:var(--warning);" title="Not synced">⏳</span>' : ''}
+        </div>
+        ${notes ? `<div style="color:var(--text-secondary); margin-top:2px;">${UI.esc(notes)}</div>` : ''}
+      </div>`;
+    }
+
+    html += `</div>`;
+    container.innerHTML = html;
   },
 
   async _takePhoto(fromGallery) {
@@ -159,11 +258,11 @@ const ScoutView = {
     this._photoBlob = null;
     if (this._photoURL) URL.revokeObjectURL(this._photoURL);
     this._photoURL = null;
-    UI.$('#photo-preview').style.display = 'none';
+    const preview = UI.$('#photo-preview');
+    if (preview) preview.style.display = 'none';
   },
 
   _updateSaveButton() {
-    // Need at least a team and a role to save
     UI.$('#btn-save').disabled = !(this._selectedTeam && this._selectedRole);
   },
 
@@ -187,52 +286,19 @@ const ScoutView = {
       await DB.saveEntry(entry);
       UI.toast(`Saved entry for Team #${entry.teamNumber} (${entry.role})`, 'success');
 
-      // Reset form
-      this._photoBlob = null;
-      if (this._photoURL) URL.revokeObjectURL(this._photoURL);
-      this._photoURL = null;
-      this._selectedTeam = null;
+      // Reset form but keep team selected — scout might add another entry
       this._selectedRole = null;
-      UI.$('#team-search').value = '';
-      UI.$('#selected-team').textContent = '';
-      UI.$('#entry-notes').value = '';
-      UI.$('#photo-preview').style.display = 'none';
+      this._removePhoto();
       UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
+      UI.$('#entry-notes').value = '';
       UI.$('#btn-save').disabled = true;
 
       App.updateQueueBadge();
-      this._showRecentEntries();
+
+      // Refresh existing data to show the new entry
+      await this._showExistingData(this._selectedTeam.teamNumber);
     } catch (err) {
       UI.toast('Failed to save: ' + err.message, 'error');
     }
-  },
-
-  async _showRecentEntries() {
-    const container = UI.$('#recent-entries');
-    const all = await DB.getAllEntries();
-    const recent = all.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
-
-    if (recent.length === 0) {
-      container.innerHTML = '';
-      return;
-    }
-
-    container.innerHTML = `
-      <div class="section-header"><span class="section-title">Recent Entries</span></div>
-      ${recent.map(e => {
-        const team = Teams.get(e.teamNumber);
-        const roleColors = { scorer: 'var(--success)', feeder: '#2196f3', defender: 'var(--warning)' };
-        return `<div class="queue-item">
-          ${e.imageBlob ? `<img src="${Camera.createPreviewURL(e.imageBlob)}" alt="Photo">` : '<div style="width:50px;height:50px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📋</div>'}
-          <div class="queue-item-info">
-            <div class="team">#${e.teamNumber} ${team ? '— ' + UI.esc(team.teamName) : ''}</div>
-            <div class="meta">
-              <span style="color:${roleColors[e.role] || 'inherit'}; font-weight:600;">${UI.esc(e.role)}</span>
-              · ${UI.esc(e.scoutName)} · ${UI.formatTime(e.createdAt)}
-            </div>
-          </div>
-        </div>`;
-      }).join('')}
-    `;
   },
 };

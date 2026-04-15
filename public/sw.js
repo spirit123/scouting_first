@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ftc-scout-v2';
+const CACHE_VERSION = 'ftc-scout-v3';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
