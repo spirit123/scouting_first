@@ -93,6 +93,7 @@ The form is 3 steps (photo capture is integrated into step 1 alongside the team 
 - **Auto-assign**: round-robin distribution, each team assigned to N scouts (default 2)
 - Scouts set their name in Settings (must match)
 - **Gallery view** shows: assignment progress bar, filter buttons (All / My Teams / To Do), teams sorted by assignment status (to-do first with orange border, done with green border)
+- **Completion is checked both server-side AND locally** — local unsynced entries by the current scout count as done (so scouts see immediate feedback without needing to sync first)
 - Progress dashboard shows per-scout completion and remaining teams
 
 ### Sync Protocol
@@ -107,7 +108,8 @@ The form is 3 steps (photo capture is integrated into step 1 alongside the team 
 - Scout photos replace pre-loaded robot images as team thumbnails in the gallery
 - **Team detail page** shows ALL photos in a grid: pre-loaded image + all scout photos (local + synced)
 - **Thumbnail picker**: Tap any photo in team detail to set it as the gallery thumbnail (star badge + pink outline on selected). Stored in `team_thumbnails` table
-- Gallery thumbnail priority: chosen thumbnail > latest scout photo > pre-loaded robot image
+- Gallery thumbnail priority: chosen thumbnail > local unsynced photo > latest server photo > pre-loaded robot image
+- **Pending photos** in team detail are visually dimmed (can't be set as thumbnail until synced)
 
 ### Views (6 main + 2 extra, hash routing SPA)
 
@@ -177,10 +179,26 @@ POST /api/scouts/assignments/auto   — auto-distribute { perTeam }
 
 - Mobile-first, CSS variables for theming
 - Dark header (#1a1a2e), accent red (#e94560)
-- Role buttons: scorer=green, feeder=blue, defender=orange
+- Role colors as CSS variables: `--scorer` (green), `--feeder` (blue), `--defender` (orange)
 - Assignment badges: to-do=orange border, done=green border
+- Minimum 48px touch targets on buttons, 44px on tabs and interactive elements
+- Input focus: border color change + glow ring (`box-shadow`)
+- Tier badges with gradient backgrounds (gold for elite)
+- Progress bars: 8px height with gradient fill
+- Offline status dot pulses with animation
+- Photo viewer close: 44px circle button
+- Search dropdown respects viewport height (`50vh` max)
 - Bottom tab bar with safe-area-inset for notched phones
+- `.back-link` class for consistent back navigation styling
 - SVG icon for PWA manifest
+
+### UX Details
+
+- **Required field indicators**: asterisk on Robot Role label
+- **Save button hint**: "Select a team and role to save" — hides when form is valid
+- **Offline error banner**: export page shows error when server unreachable
+- **Connection test feedback**: shows IP:port tested in result message
+- **Pending photos dimmed**: unsynced photos at 50% opacity in thumbnail picker
 
 ### Key Lessons Learned
 
@@ -191,3 +209,5 @@ POST /api/scouts/assignments/auto   — auto-distribute { perTeam }
 5. Service worker cache version must be bumped on every code change
 6. File input for camera must be appended to DOM before `.click()` on some browsers
 7. IndexedDB version must be bumped when changing object store schema
+8. Assignment completion must check local IndexedDB entries, not just server — scouts need immediate feedback
+9. Gallery thumbnail must check local photo blobs too, not just server UUIDs — unsynced photos should appear

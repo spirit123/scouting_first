@@ -14,10 +14,13 @@ Offline-first scouting app for FIRST robotics competitions. Scouts use their pho
 
 - **Offline-first PWA** — works without network, syncs when connected
 - **No app install on scout phones** — just open a URL in the browser
-- **Scout assignments** — auto-distribute teams across scouts, track completion progress
+- **Scout assignments** — auto-distribute teams across scouts, track completion (works even before syncing)
 - **Photo management** — capture/pick photos, set team thumbnails from team detail view
 - **Pre-filled forms** — returning to a team loads the latest scouting data (role + notes)
 - **Compact scout workflow** — 3 steps: select team (with image + camera), pick role, add notes
+- **Team stats** — OPR, win rate, composite scores, and tier badges from The Blue Alliance
+- **Alliance selection** — serpentine draft with role filters, OPR sorting, and undo
+- **Event import** — one command to import teams + stats from any TBA event
 - **Export** — CSV, printable HTML report, JSON data dump
 
 ## Quick Start (Development)
