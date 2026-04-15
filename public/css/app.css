@@ -196,9 +196,10 @@ textarea { resize: vertical; min-height: 60px; }
 .search-result-item:active { background: var(--bg); }
 .search-result-item .team-num { font-weight: 700; margin-right: 8px; }
 
-/* === Filter Buttons === */
-.filter-btn { background: var(--border); color: var(--text-secondary); }
+/* === Filter & Sort Buttons === */
+.filter-btn, .sort-btn { background: var(--border); color: var(--text-secondary); }
 .filter-btn.active { background: var(--accent); color: white; }
+.sort-btn.active { background: var(--primary-light); color: white; }
 
 /* === Existing Data Panel === */
 .existing-data-panel {

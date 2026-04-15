@@ -5,10 +5,14 @@ const AlliancesView = {
   _pickOrder: [],  // which alliance picks next
   _currentPick: 0,
   _round: 0,
+  _roleMap: {},    // teamNumber -> { scorer, feeder, defender } counts
+  _sortBy: 'composite',
+  _filterRole: 'all',
 
   async render(container) {
-    // Load saved state or initialize
+    // Load saved state and role data
     this._loadState();
+    await this._loadRoles();
 
     container.innerHTML = `
       <div class="section-header">
@@ -25,6 +29,18 @@ const AlliancesView = {
         <span class="section-title">Available Teams</span>
         <span id="available-count" class="text-secondary"></span>
       </div>
+      <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+        <button class="btn btn-small filter-btn active" data-filter="all">All</button>
+        <button class="btn btn-small filter-btn" data-filter="scorer">🎯 Scorers</button>
+        <button class="btn btn-small filter-btn" data-filter="feeder">🤝 Feeders</button>
+        <button class="btn btn-small filter-btn" data-filter="defender">🛡️ Defenders</button>
+      </div>
+      <div style="display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;">
+        <button class="btn btn-small sort-btn active" data-sort="composite">Best Overall</button>
+        <button class="btn btn-small sort-btn" data-sort="opr">Best OPR</button>
+        <button class="btn btn-small sort-btn" data-sort="winrate">Best Win Rate</button>
+        <button class="btn btn-small sort-btn" data-sort="team">Team #</button>
+      </div>
       <div class="form-group">
         <input type="search" id="alliance-search" placeholder="Search available teams..." autocomplete="off">
       </div>
@@ -39,9 +55,65 @@ const AlliancesView = {
       this._renderAll();
     });
 
+    UI.$$('.filter-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        UI.$$('.filter-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this._filterRole = btn.dataset.filter;
+        this._renderAvailable(UI.$('#alliance-search').value);
+      });
+    });
+
+    UI.$$('.sort-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        UI.$$('.sort-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this._sortBy = btn.dataset.sort;
+        this._renderAvailable(UI.$('#alliance-search').value);
+      });
+    });
+
     UI.$('#alliance-search').addEventListener('input', (e) => {
       this._renderAvailable(e.target.value);
     });
+  },
+
+  async _loadRoles() {
+    this._roleMap = {};
+
+    // Load from local IndexedDB
+    try {
+      const localEntries = await DB.getAllEntries();
+      for (const e of localEntries) {
+        if (!e.role) continue;
+        if (!this._roleMap[e.teamNumber]) this._roleMap[e.teamNumber] = { scorer: 0, feeder: 0, defender: 0 };
+        this._roleMap[e.teamNumber][e.role] = (this._roleMap[e.teamNumber][e.role] || 0) + 1;
+      }
+    } catch (e) {}
+
+    // Load from server
+    try {
+      const res = await fetch('/api/entries');
+      if (res.ok) {
+        const entries = await res.json();
+        for (const e of entries) {
+          if (!e.role) continue;
+          const num = e.team_number;
+          if (!this._roleMap[num]) this._roleMap[num] = { scorer: 0, feeder: 0, defender: 0 };
+          this._roleMap[num][e.role] = (this._roleMap[num][e.role] || 0) + 1;
+        }
+      }
+    } catch (e) {}
+  },
+
+  _getPrimaryRole(teamNumber) {
+    const roles = this._roleMap[teamNumber];
+    if (!roles) return null;
+    const max = Math.max(roles.scorer, roles.feeder, roles.defender);
+    if (max === 0) return null;
+    if (roles.scorer === max) return 'scorer';
+    if (roles.feeder === max) return 'feeder';
+    return 'defender';
   },
 
   _loadState() {
@@ -253,7 +325,17 @@ const AlliancesView = {
     const list = UI.$('#available-list');
     const countEl = UI.$('#available-count');
 
-    let filtered = this._available;
+    let filtered = [...this._available];
+
+    // Filter by role
+    if (this._filterRole !== 'all') {
+      filtered = filtered.filter(t => {
+        const role = this._getPrimaryRole(t.teamNumber);
+        return role === this._filterRole;
+      });
+    }
+
+    // Search
     if (query) {
       const q = query.toLowerCase();
       filtered = filtered.filter(t =>
@@ -262,7 +344,17 @@ const AlliancesView = {
       );
     }
 
-    countEl.textContent = `${this._available.length} remaining`;
+    // Sort
+    filtered.sort((a, b) => {
+      switch (this._sortBy) {
+        case 'opr': return (b.opr || -999) - (a.opr || -999);
+        case 'winrate': return (b.winRate || 0) - (a.winRate || 0);
+        case 'team': return a.teamNumber - b.teamNumber;
+        default: return (b.composite || 0) - (a.composite || 0);
+      }
+    });
+
+    countEl.textContent = `${filtered.length}/${this._available.length} shown`;
 
     if (filtered.length === 0) {
       list.innerHTML = '<div class="empty-state"><div class="message">No teams found</div></div>';
@@ -272,15 +364,25 @@ const AlliancesView = {
     const isPickActive = !this._isComplete();
     const tierColors = { elite: '#ffd700', strong: '#c0c0c0', average: '#cd7f32', below_avg: '#e0e0e0', developing: '#f5f5f5' };
 
+    const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
+    const roleColors = { scorer: '#4caf50', feeder: '#2196f3', defender: '#ff9800' };
+
     list.innerHTML = filtered.map(t => {
-      const tierColor = tierColors[t.tier] || '#eee';
+      const primaryRole = this._getPrimaryRole(t.teamNumber);
+      const roleIcon = primaryRole ? roleIcons[primaryRole] : '';
+      const roleColor = primaryRole ? roleColors[primaryRole] : '';
+
       return `<div class="queue-item ${isPickActive ? 'pickable-team' : ''}" data-team="${t.teamNumber}" style="cursor:${isPickActive ? 'pointer' : 'default'};">
         <div style="width:40px; text-align:center; font-weight:700; font-size:16px; color:var(--accent); flex-shrink:0;">${t.teamNumber}</div>
         <div class="queue-item-info">
-          <div class="team">${UI.esc(t.teamName)}</div>
+          <div class="team">
+            ${UI.esc(t.teamName)}
+            ${primaryRole ? `<span style="color:${roleColor}; font-size:12px; margin-left:4px;" title="${primaryRole}">${roleIcon}</span>` : ''}
+          </div>
           <div class="meta">
             ${UI.esc([t.city, t.state].filter(Boolean).join(', '))}
             ${t.record ? ` · ${t.record}` : ''}
+            ${t.winRate != null ? ` · ${t.winRate}% WR` : ''}
           </div>
         </div>
         <div style="text-align:right; flex-shrink:0;">
