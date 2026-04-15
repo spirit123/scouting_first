@@ -211,10 +211,15 @@ const ScoutView = {
       : `Team #${teamNumber}`;
 
     // Show team info panel
-    const panel = UI.$('#team-info-panel');
-    panel.classList.remove('hidden');
+    UI.$('#team-info-panel').classList.remove('hidden');
 
+    // Load existing scouting data, show image, and pre-fill form
+    await this._loadTeamData(teamNumber);
+  },
+
+  async _loadTeamData(teamNumber) {
     // Show robot image: prefer scout photo over pre-loaded image
+    const team = this._selectedTeam;
     const imgContainer = UI.$('#team-robot-img');
     const scoutImg = team && team.latestPhotoUuid ? `/api/entries/${encodeURIComponent(team.latestPhotoUuid)}/image` : null;
     const robotImg = scoutImg || (team ? team.robotImageUrl : null);
@@ -224,11 +229,6 @@ const ScoutView = {
       imgContainer.innerHTML = '';
     }
 
-    // Load existing scouting data and pre-fill form from latest entry
-    await this._loadTeamData(teamNumber);
-  },
-
-  async _loadTeamData(teamNumber) {
     // Gather entries from local + server
     const localEntries = await DB.getEntriesByTeam(teamNumber);
     UI.log('[Scout] Local entries for team', teamNumber, ':', localEntries.length, localEntries);
