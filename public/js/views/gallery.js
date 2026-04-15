@@ -70,8 +70,19 @@ const GalleryView = {
     });
   },
 
-  _renderTeams(teams, assignedNums, doneNums, todoNums) {
+  async _renderTeams(teams, assignedNums, doneNums, todoNums) {
     const container = UI.$('#team-grid-container');
+
+    // Build map of local photos (unsynced blobs) by team number
+    const localPhotos = {};
+    try {
+      const allEntries = await DB.getAllEntries();
+      for (const e of allEntries) {
+        if (e.imageBlob && !localPhotos[e.teamNumber]) {
+          localPhotos[e.teamNumber] = Camera.createPreviewURL(e.imageBlob);
+        }
+      }
+    } catch (err) {}
 
     // Apply filter
     let filtered = teams;
@@ -110,12 +121,14 @@ const GalleryView = {
           badge = '<div style="font-size:11px; color:var(--success); font-weight:600;">✓ Done</div>';
         }
 
-        // Use chosen thumbnail, or fall back to latest scout photo, or pre-loaded image
+        // Use chosen thumbnail > local photo > latest server photo > pre-loaded image
         let imgSrc = '';
         if (t.thumbnailSource === 'default') {
           imgSrc = t.robotImageUrl || '';
         } else if (t.thumbnailSource) {
           imgSrc = `/api/entries/${encodeURIComponent(t.thumbnailSource)}/image`;
+        } else if (localPhotos[t.teamNumber]) {
+          imgSrc = localPhotos[t.teamNumber];
         } else if (t.latestPhotoUuid) {
           imgSrc = `/api/entries/${encodeURIComponent(t.latestPhotoUuid)}/image`;
         } else {
