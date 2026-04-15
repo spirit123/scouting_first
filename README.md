@@ -6,7 +6,7 @@ Offline-first scouting app for FIRST robotics competitions. Scouts use their pho
 
 1. **Master phone** (Android) creates a WiFi hotspot and runs a Node.js server via Termux
 2. **Scout phones** (any phone) connect to the hotspot and open the app in their browser
-3. Scouts evaluate robots: select team, pick role (scorer/feeder/defender), optionally take photos, add notes
+3. Scouts start on the Teams view, tap a team, and fill in the scouting form: role (scorer/feeder/defender), optional photo, and notes
 4. Data is stored locally offline and synced to the master phone when in range
 5. Master phone exports reports (CSV, HTML, JSON)
 
@@ -14,9 +14,10 @@ Offline-first scouting app for FIRST robotics competitions. Scouts use their pho
 
 - **Offline-first PWA** — works without network, syncs when connected
 - **No app install on scout phones** — just open a URL in the browser
-- **Scout assignments** — auto-distribute teams across scouts, track completion
-- **Photo management** — capture/pick photos, set team thumbnails
-- **Pre-filled forms** — returning to a team loads the latest scouting data
+- **Scout assignments** — auto-distribute teams across scouts, track completion progress
+- **Photo management** — capture/pick photos, set team thumbnails from team detail view
+- **Pre-filled forms** — returning to a team loads the latest scouting data (role + notes)
+- **Compact scout workflow** — 3 steps: select team (with image + camera), pick role, add notes
 - **Export** — CSV, printable HTML report, JSON data dump
 
 ## Quick Start (Development)

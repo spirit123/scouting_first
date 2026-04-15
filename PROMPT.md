@@ -41,13 +41,16 @@ team_thumbnails: team_number (PK), photo_source (UUID or "default")
 
 ### Scouting Workflow (the core UX)
 
-1. **Select Team** — searchable autocomplete. When input is focused with no text, shows assigned teams dropdown (to-do first with orange dot, done with green check)
+1. **Select Team** — searchable autocomplete. When input is focused with no text, shows assigned teams dropdown (to-do first with orange dot, done with green check). After selecting a team, shows the robot image (120x120) with Camera/Gallery buttons beside it, plus previous entries summary below.
 2. **Pick Robot Role** — three buttons: Scorer, Feeder, Defender (color-coded: green, blue, orange)
-3. **Photo** (optional) — camera capture or gallery pick. Images resized client-side to max 1920px wide, JPEG 80% quality (~500KB)
-4. **Notes** (optional) — free text
-5. **Save** — stores to IndexedDB, syncs later
+3. **Notes** (optional) — free text
+4. **Save** — stores to IndexedDB, syncs later
+
+The form is 3 steps (photo capture is integrated into step 1 alongside the team image). Camera and Gallery buttons sit next to the robot image.
 
 **Key behavior**: When selecting a team that already has entries, the form **pre-fills** with the latest entry's role and notes. Switching teams clears and reloads. After saving, the team stays selected and data refreshes. When navigating from team detail via "Scout This Team", a "Back to Team #N" button appears.
+
+**Image priority in scout view**: local unsynced photo (IndexedDB blob) > server synced photo (latest UUID) > pre-loaded robot image (from CSV). If no image exists at all, shows a camera placeholder.
 
 ### Scout Assignment System
 
@@ -74,18 +77,19 @@ team_thumbnails: team_number (PK), photo_source (UUID or "default")
 
 ### Views (6 main + 2 extra, hash routing SPA)
 
-1. `#/scout` — Main scouting form (team search, role, photo, notes)
-2. `#/scout/:num` — Scout form with team pre-selected + back button
-3. `#/queue` — Pending uploads list, "Sync All" button with progress bar
-4. `#/gallery` — Team cards grid with photos, assignment badges, search, filters
-5. `#/team/:num` — Team detail: all photos grid with thumbnail picker, entries list, "Scout This Team" button
+1. `#/gallery` — **Default view**. Team cards grid with photos, assignment badges, search, filters (All/My Teams/To Do)
+2. `#/team/:num` — Team detail: all photos grid with thumbnail picker, entries list, "Scout This Team" button
+3. `#/scout` — Scouting form: team search + image + camera (section 1), role (section 2), notes (section 3)
+4. `#/scout/:num` — Scout form with team pre-selected + "Back to Team #N" button
+5. `#/queue` — Pending uploads list, "Sync All" button with progress bar
 6. `#/export` — Stats, CSV/HTML/JSON download
 7. `#/admin` — Scout management, auto-assign, progress dashboard
 8. `#/settings` — Scout name, server IP/port, test connection, debug toggle, clear data
 
 ### Navigation
 
-- Bottom tab bar: Scout, Queue (with badge count), Teams, Settings
+- Bottom tab bar order: **Teams (🤖), Scout (📷), Queue (📤), Settings (⚙️)**
+- App opens on Teams view by default
 - Admin accessible from Teams > Manage button
 - Export accessible from Teams > Export button
 
