@@ -21,7 +21,7 @@ const QueueView = {
   },
 
   async _loadQueue() {
-    const unsynced = await DB.getUnsyncedPhotos();
+    const unsynced = await DB.getUnsyncedEntries();
     const countEl = UI.$('#queue-count');
     const listEl = UI.$('#queue-list');
     const syncBtn = UI.$('#btn-sync');
@@ -30,37 +30,42 @@ const QueueView = {
     syncBtn.disabled = unsynced.length === 0 || Sync.isSyncing;
 
     if (unsynced.length === 0) {
-      UI.showEmpty(listEl, '✅', 'All photos synced!');
+      UI.showEmpty(listEl, '✅', 'All entries synced!');
       return;
     }
 
-    listEl.innerHTML = unsynced.map(p => {
-      const thumbURL = p.imageBlob ? Camera.createPreviewURL(p.imageBlob) : '';
-      const team = Teams.get(p.teamNumber);
-      const teamLabel = team ? `#${team.teamNumber} — ${team.teamName}` : `#${p.teamNumber}`;
+    const roleColors = { scorer: 'var(--success)', feeder: '#2196f3', defender: 'var(--warning)' };
+
+    listEl.innerHTML = unsynced.map(e => {
+      const thumbURL = e.imageBlob ? Camera.createPreviewURL(e.imageBlob) : '';
+      const team = Teams.get(e.teamNumber);
+      const teamLabel = team ? `#${team.teamNumber} — ${team.teamName}` : `#${e.teamNumber}`;
       return `
-        <div class="queue-item" data-uuid="${UI.esc(p.uuid)}">
-          <img src="${thumbURL}" alt="Photo">
+        <div class="queue-item" data-uuid="${UI.esc(e.uuid)}">
+          ${thumbURL
+            ? `<img src="${thumbURL}" alt="Photo">`
+            : '<div style="width:50px;height:50px;background:var(--border);border-radius:6px;display:flex;align-items:center;justify-content:center;flex-shrink:0;">📋</div>'}
           <div class="queue-item-info">
             <div class="team">${UI.esc(teamLabel)}</div>
-            <div class="meta">${UI.esc(p.scoutName)} · ${UI.formatTime(p.takenAt)}</div>
-            ${p.notes ? `<div class="meta">${UI.esc(p.notes)}</div>` : ''}
+            <div class="meta">
+              <span style="color:${roleColors[e.role] || 'inherit'}; font-weight:600;">${UI.esc(e.role || '')}</span>
+              · ${UI.esc(e.scoutName)} · ${UI.formatTime(e.createdAt)}
+            </div>
+            ${e.notes ? `<div class="meta">${UI.esc(e.notes)}</div>` : ''}
           </div>
           <div class="queue-item-actions">
-            <button class="btn btn-danger btn-small btn-delete" data-uuid="${UI.esc(p.uuid)}">✕</button>
+            <button class="btn btn-danger btn-small btn-delete" data-uuid="${UI.esc(e.uuid)}">✕</button>
           </div>
         </div>
       `;
     }).join('');
 
-    // Delete handlers
     listEl.querySelectorAll('.btn-delete').forEach(btn => {
       btn.addEventListener('click', async (e) => {
         e.stopPropagation();
-        const uuid = btn.dataset.uuid;
-        if (confirm('Delete this photo from queue?')) {
-          await DB.deletePhoto(uuid);
-          UI.toast('Photo removed', 'info');
+        if (confirm('Delete this entry from queue?')) {
+          await DB.deleteEntry(btn.dataset.uuid);
+          UI.toast('Entry removed', 'info');
           App.updateQueueBadge();
           this._loadQueue();
         }
@@ -74,7 +79,6 @@ const QueueView = {
     const progressFill = UI.$('#progress-fill');
     const progressText = UI.$('#progress-text');
 
-    // Check connection first
     const status = await Sync.checkConnection();
     if (!status.online) {
       UI.toast('Cannot reach server. Connect to hotspot first.', 'error');

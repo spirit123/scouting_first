@@ -6,7 +6,6 @@ const router = express.Router();
 const db = require('../db');
 const config = require('../config');
 
-// Configure multer — store in temp, we'll move files after validation
 const upload = multer({
   dest: path.join(config.uploadsDir, '.tmp'),
   limits: { fileSize: config.maxFileSize },
@@ -14,8 +13,8 @@ const upload = multer({
 
 // POST /api/sync — bulk upload from scout
 // Expects multipart form with:
-//   - metadata: JSON string array of { uuid, teamNumber, scoutName, notes, takenAt }
-//   - photo_<uuid>: file for each photo
+//   - metadata: JSON string array of { uuid, teamNumber, role, scoutName, notes, createdAt }
+//   - photo_<uuid>: file for each entry that has a photo (optional)
 router.post('/', upload.any(), (req, res) => {
   const synced = [];
   const duplicates = [];
@@ -41,18 +40,17 @@ router.post('/', upload.any(), (req, res) => {
   }
 
   for (const entry of metadata) {
-    const { uuid, teamNumber, scoutName, notes, takenAt } = entry;
+    const { uuid, teamNumber, role, scoutName, notes, createdAt } = entry;
 
-    if (!uuid || !teamNumber || !takenAt) {
-      errors.push({ uuid, reason: 'Missing required fields (uuid, teamNumber, takenAt)' });
+    if (!uuid || !teamNumber || !createdAt) {
+      errors.push({ uuid, reason: 'Missing required fields (uuid, teamNumber, createdAt)' });
       continue;
     }
 
     // Check for duplicate
-    const existing = db.get('SELECT uuid FROM photos WHERE uuid = ?', [uuid]);
+    const existing = db.get('SELECT uuid FROM entries WHERE uuid = ?', [uuid]);
     if (existing) {
       duplicates.push(uuid);
-      // Clean up temp file if uploaded
       const tempFile = fileMap[`photo_${uuid}`];
       if (tempFile && fs.existsSync(tempFile.path)) {
         fs.unlinkSync(tempFile.path);
@@ -60,42 +58,40 @@ router.post('/', upload.any(), (req, res) => {
       continue;
     }
 
-    // Find the uploaded file
-    const file = fileMap[`photo_${uuid}`];
-    if (!file) {
-      errors.push({ uuid, reason: 'No file uploaded for this UUID' });
-      continue;
-    }
-
     try {
-      // Create team directory
-      const teamDir = path.join(config.uploadsDir, String(teamNumber));
-      fs.mkdirSync(teamDir, { recursive: true });
+      // Handle optional photo
+      const file = fileMap[`photo_${uuid}`];
+      let filename = null;
+      let fileSize = null;
 
-      // Move file from temp to final location
-      const ext = path.extname(file.originalname) || '.jpg';
-      const filename = path.join(String(teamNumber), `${uuid}${ext}`);
-      const destPath = path.join(config.uploadsDir, filename);
-      fs.renameSync(file.path, destPath);
+      if (file) {
+        const teamDir = path.join(config.uploadsDir, String(teamNumber));
+        fs.mkdirSync(teamDir, { recursive: true });
+
+        const ext = path.extname(file.originalname) || '.jpg';
+        filename = path.join(String(teamNumber), `${uuid}${ext}`);
+        const destPath = path.join(config.uploadsDir, filename);
+        fs.renameSync(file.path, destPath);
+        fileSize = fs.statSync(destPath).size;
+      }
 
       // Insert into DB
-      const fileSize = fs.statSync(destPath).size;
       db.run(
-        'INSERT INTO photos (uuid, team_number, filename, scout_name, notes, taken_at, file_size) VALUES (?, ?, ?, ?, ?, ?, ?)',
-        [uuid, teamNumber, filename, scoutName || null, notes || null, takenAt, fileSize]
+        'INSERT INTO entries (uuid, team_number, role, filename, scout_name, notes, created_at, file_size) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuid, teamNumber, role || null, filename, scoutName || null, notes || null, createdAt, fileSize]
       );
 
       synced.push(uuid);
     } catch (err) {
       errors.push({ uuid, reason: err.message });
-      // Clean up temp file on error
-      if (fs.existsSync(file.path)) {
+      const file = fileMap[`photo_${uuid}`];
+      if (file && fs.existsSync(file.path)) {
         fs.unlinkSync(file.path);
       }
     }
   }
 
-  // Clean up any remaining temp files not referenced by metadata
+  // Clean up remaining temp files
   if (req.files) {
     for (const f of req.files) {
       if (fs.existsSync(f.path)) {
@@ -105,7 +101,6 @@ router.post('/', upload.any(), (req, res) => {
   }
 
   db.persist();
-
   console.log(`Sync: ${synced.length} new, ${duplicates.length} dupes, ${errors.length} errors`);
   res.json({ synced, duplicates, errors });
 });

@@ -2,7 +2,7 @@
 const DB = {
   _db: null,
   DB_NAME: 'ftc-scout',
-  DB_VERSION: 1,
+  DB_VERSION: 2,
 
   open() {
     if (this._db) return Promise.resolve(this._db);
@@ -12,13 +12,19 @@ const DB = {
       req.onupgradeneeded = (e) => {
         const db = e.target.result;
 
-        if (!db.objectStoreNames.contains('photos')) {
-          const photoStore = db.createObjectStore('photos', { keyPath: 'uuid' });
-          photoStore.createIndex('teamNumber', 'teamNumber', { unique: false });
-          photoStore.createIndex('synced', 'synced', { unique: false });
+        // Delete old stores if upgrading
+        if (db.objectStoreNames.contains('photos')) {
+          db.deleteObjectStore('photos');
+        }
+
+        if (!db.objectStoreNames.contains('entries')) {
+          const store = db.createObjectStore('entries', { keyPath: 'uuid' });
+          store.createIndex('teamNumber', 'teamNumber', { unique: false });
+          store.createIndex('synced', 'synced', { unique: false });
         }
 
         if (!db.objectStoreNames.contains('teams')) {
+          if (db.objectStoreNames.contains('teams')) db.deleteObjectStore('teams');
           db.createObjectStore('teams', { keyPath: 'teamNumber' });
         }
       };
@@ -32,7 +38,6 @@ const DB = {
     });
   },
 
-  // Generic transaction helper
   async _tx(storeName, mode, fn) {
     const db = await this.open();
     return new Promise((resolve, reject) => {
@@ -50,45 +55,44 @@ const DB = {
     });
   },
 
-  // === Photos ===
+  // === Entries ===
 
-  async savePhoto(photo) {
-    return this._tx('photos', 'readwrite', store => store.put(photo));
+  async saveEntry(entry) {
+    return this._tx('entries', 'readwrite', store => store.put(entry));
   },
 
-  async getPhoto(uuid) {
-    return this._tx('photos', 'readonly', store => store.get(uuid));
+  async getEntry(uuid) {
+    return this._tx('entries', 'readonly', store => store.get(uuid));
   },
 
-  async getAllPhotos() {
-    return this._tx('photos', 'readonly', store => store.getAll());
+  async getAllEntries() {
+    return this._tx('entries', 'readonly', store => store.getAll());
   },
 
-  async getUnsyncedPhotos() {
-    const all = await this.getAllPhotos();
-    return all.filter(p => !p.synced);
+  async getUnsyncedEntries() {
+    const all = await this.getAllEntries();
+    return all.filter(e => !e.synced);
   },
 
-  async getPhotosByTeam(teamNumber) {
-    const all = await this.getAllPhotos();
-    return all.filter(p => p.teamNumber === teamNumber);
+  async getEntriesByTeam(teamNumber) {
+    const all = await this.getAllEntries();
+    return all.filter(e => e.teamNumber === teamNumber);
   },
 
   async markSynced(uuid) {
-    const photo = await this.getPhoto(uuid);
-    if (photo) {
-      photo.synced = true;
-      // Keep a small thumbnail but free the full image blob to save space
-      return this.savePhoto(photo);
+    const entry = await this.getEntry(uuid);
+    if (entry) {
+      entry.synced = true;
+      return this.saveEntry(entry);
     }
   },
 
-  async deletePhoto(uuid) {
-    return this._tx('photos', 'readwrite', store => store.delete(uuid));
+  async deleteEntry(uuid) {
+    return this._tx('entries', 'readwrite', store => store.delete(uuid));
   },
 
   async getUnsyncedCount() {
-    const unsynced = await this.getUnsyncedPhotos();
+    const unsynced = await this.getUnsyncedEntries();
     return unsynced.length;
   },
 
@@ -121,8 +125,8 @@ const DB = {
   async clearAll() {
     const db = await this.open();
     return new Promise((resolve, reject) => {
-      const tx = db.transaction(['photos', 'teams'], 'readwrite');
-      tx.objectStore('photos').clear();
+      const tx = db.transaction(['entries', 'teams'], 'readwrite');
+      tx.objectStore('entries').clear();
       tx.objectStore('teams').clear();
       tx.oncomplete = () => resolve();
       tx.onerror = () => reject(tx.error);

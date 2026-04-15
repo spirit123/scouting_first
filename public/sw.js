@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ftc-scout-v1';
+const CACHE_VERSION = 'ftc-scout-v2';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -66,7 +66,7 @@ self.addEventListener('fetch', (event) => {
   }
 
   // Cache-first for photo images
-  if (url.pathname.match(/^\/api\/photos\/.*\/image$/)) {
+  if (url.pathname.match(/^\/api\/entries\/.*\/image$/)) {
     event.respondWith(
       caches.open(CACHE_VERSION).then(cache =>
         cache.match(event.request).then(cached => {

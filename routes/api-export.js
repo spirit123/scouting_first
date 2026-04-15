@@ -1,29 +1,27 @@
 const express = require('express');
-const path = require('path');
-const fs = require('fs');
 const router = express.Router();
 const db = require('../db');
-const config = require('../config');
 
-// GET /api/export/csv — download CSV of all photo metadata
+// GET /api/export/csv
 router.get('/csv', (req, res) => {
-  const photos = db.all(`
-    SELECT p.uuid, p.team_number, t.team_name, p.scout_name, p.notes, p.taken_at, p.synced_at, p.file_size
-    FROM photos p
-    LEFT JOIN teams t ON p.team_number = t.team_number
-    ORDER BY p.team_number, p.taken_at
+  const entries = db.all(`
+    SELECT e.uuid, e.team_number, t.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.file_size,
+           CASE WHEN e.filename IS NOT NULL THEN 1 ELSE 0 END as has_photo
+    FROM entries e
+    LEFT JOIN teams t ON e.team_number = t.team_number
+    ORDER BY e.team_number, e.created_at
   `);
 
-  const header = 'uuid,team_number,team_name,scout_name,notes,taken_at,synced_at,file_size';
-  const rows = photos.map(p => {
-    const escape = (v) => {
+  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size';
+  const rows = entries.map(e => {
+    const esc = (v) => {
       if (v == null) return '';
       const s = String(v);
       return s.includes(',') || s.includes('"') || s.includes('\n')
         ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [p.uuid, p.team_number, p.team_name, p.scout_name, p.notes, p.taken_at, p.synced_at, p.file_size]
-      .map(escape).join(',');
+    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size]
+      .map(esc).join(',');
   });
 
   const csv = [header, ...rows].join('\n');
@@ -32,38 +30,35 @@ router.get('/csv', (req, res) => {
   res.send(csv);
 });
 
-// GET /api/export/json — full data dump
+// GET /api/export/json
 router.get('/json', (req, res) => {
   const teams = db.all('SELECT * FROM teams ORDER BY team_number');
-  const photos = db.all('SELECT * FROM photos ORDER BY team_number, taken_at');
-  res.json({ exportedAt: new Date().toISOString(), teams, photos });
+  const entries = db.all('SELECT * FROM entries ORDER BY team_number, created_at');
+  res.json({ exportedAt: new Date().toISOString(), teams, entries });
 });
 
-// GET /api/export/html — printable HTML report with thumbnails
+// GET /api/export/html — printable report
 router.get('/html', (req, res) => {
   const teams = db.all(`
-    SELECT t.*, COUNT(p.uuid) as photo_count
+    SELECT t.*, COUNT(e.uuid) as entry_count, COUNT(e.filename) as photo_count
     FROM teams t
-    LEFT JOIN photos p ON t.team_number = p.team_number
+    LEFT JOIN entries e ON t.team_number = e.team_number
     GROUP BY t.team_number
     ORDER BY t.team_number
   `);
 
-  const photos = db.all('SELECT * FROM photos ORDER BY team_number, taken_at');
+  const entries = db.all('SELECT * FROM entries ORDER BY team_number, created_at');
 
-  // Group photos by team
-  const photosByTeam = {};
-  for (const p of photos) {
-    if (!photosByTeam[p.team_number]) photosByTeam[p.team_number] = [];
-    photosByTeam[p.team_number].push(p);
+  const entriesByTeam = {};
+  for (const e of entries) {
+    if (!entriesByTeam[e.team_number]) entriesByTeam[e.team_number] = [];
+    entriesByTeam[e.team_number].push(e);
   }
 
-  // Build HTML
+  const roleColors = { scorer: '#4caf50', feeder: '#2196f3', defender: '#ff9800' };
+
   let html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>FTC Scout Report</title>
 <style>
   body { font-family: Arial, sans-serif; max-width: 1200px; margin: 0 auto; padding: 20px; }
@@ -72,38 +67,47 @@ router.get('/html', (req, res) => {
   .team { border: 1px solid #ddd; border-radius: 8px; padding: 16px; margin-bottom: 20px; page-break-inside: avoid; }
   .team h2 { margin: 0 0 8px 0; color: #16213e; }
   .team .info { color: #666; font-size: 14px; margin-bottom: 12px; }
+  .role-badge { display: inline-block; padding: 2px 10px; border-radius: 12px; color: white; font-size: 12px; font-weight: 600; }
   .photos { display: flex; flex-wrap: wrap; gap: 10px; }
   .photo { width: 200px; }
   .photo img { width: 100%; height: 150px; object-fit: cover; border-radius: 4px; }
-  .photo .caption { font-size: 12px; color: #666; margin-top: 4px; }
-  .no-photos { color: #999; font-style: italic; }
+  .entry { padding: 8px 0; border-bottom: 1px solid #eee; font-size: 14px; }
+  .no-data { color: #999; font-style: italic; }
   @media print { .team { break-inside: avoid; } }
-</style>
-</head>
-<body>
+</style></head><body>
 <h1>FTC Scout Report</h1>
-<p class="stats">Generated: ${new Date().toLocaleString()} | Teams: ${teams.length} | Photos: ${photos.length}</p>
-`;
+<p class="stats">Generated: ${new Date().toLocaleString()} | Teams: ${teams.length} | Entries: ${entries.length}</p>`;
 
   for (const team of teams) {
-    const teamPhotos = photosByTeam[team.team_number] || [];
+    const teamEntries = entriesByTeam[team.team_number] || [];
     html += `<div class="team">
   <h2>Team ${team.team_number} — ${team.team_name || 'Unknown'}</h2>
-  <div class="info">${[team.school, team.city, team.state].filter(Boolean).join(', ')}</div>`;
+  <div class="info">${[team.city, team.state, team.country].filter(Boolean).join(', ')}</div>`;
 
-    if (teamPhotos.length === 0) {
-      html += `  <div class="no-photos">No photos</div>\n`;
+    if (teamEntries.length === 0) {
+      html += `<div class="no-data">No scouting data</div>`;
     } else {
-      html += `  <div class="photos">\n`;
-      for (const p of teamPhotos) {
-        html += `    <div class="photo">
-      <img src="/api/photos/${p.uuid}/image" alt="Team ${p.team_number}" loading="lazy">
-      <div class="caption">${p.scout_name || 'Unknown scout'} — ${p.notes || 'No notes'}</div>
-    </div>\n`;
+      // Show photos
+      const withPhotos = teamEntries.filter(e => e.filename);
+      if (withPhotos.length > 0) {
+        html += `<div class="photos">`;
+        for (const e of withPhotos) {
+          html += `<div class="photo"><img src="/api/entries/${e.uuid}/image" alt="Team ${e.team_number}" loading="lazy"></div>`;
+        }
+        html += `</div>`;
       }
-      html += `  </div>\n`;
+
+      // Show entries
+      for (const e of teamEntries) {
+        const color = roleColors[e.role] || '#999';
+        html += `<div class="entry">
+          ${e.role ? `<span class="role-badge" style="background:${color}">${e.role}</span>` : ''}
+          <strong>${e.scout_name || 'Unknown'}</strong> — ${e.notes || 'No notes'}
+          <span style="color:#999; font-size:12px;">(${e.created_at})</span>
+        </div>`;
+      }
     }
-    html += `</div>\n`;
+    html += `</div>`;
   }
 
   html += `</body></html>`;

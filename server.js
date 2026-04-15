@@ -4,7 +4,7 @@ const config = require('./config');
 const db = require('./db');
 
 const apiTeams = require('./routes/api-teams');
-const apiPhotos = require('./routes/api-photos');
+const apiEntries = require('./routes/api-photos');
 const apiSync = require('./routes/api-sync');
 const apiExport = require('./routes/api-export');
 const apiStatus = require('./routes/api-status');
@@ -20,7 +20,7 @@ async function start() {
 
   // API routes
   app.use('/api/teams', apiTeams);
-  app.use('/api/photos', apiPhotos);
+  app.use('/api/entries', apiEntries);
   app.use('/api/sync', apiSync);
   app.use('/api/export', apiExport);
   app.use('/api/status', apiStatus);

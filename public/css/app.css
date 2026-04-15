@@ -196,6 +196,30 @@ textarea { resize: vertical; min-height: 60px; }
 .search-result-item:active { background: var(--bg); }
 .search-result-item .team-num { font-weight: 700; margin-right: 8px; }
 
+/* === Role Selector === */
+.role-selector {
+  display: flex;
+  gap: 8px;
+}
+.role-btn {
+  flex: 1;
+  padding: 12px 8px;
+  border: 2px solid var(--border);
+  border-radius: 10px;
+  background: var(--card-bg);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.2s;
+  color: var(--text-secondary);
+}
+.role-btn .role-icon { display: block; font-size: 24px; margin-bottom: 4px; }
+.role-btn:active { transform: scale(0.95); }
+.role-btn.active[data-role="scorer"] { border-color: var(--success); color: var(--success); background: #e8f5e9; }
+.role-btn.active[data-role="feeder"] { border-color: #2196f3; color: #2196f3; background: #e3f2fd; }
+.role-btn.active[data-role="defender"] { border-color: var(--warning); color: var(--warning); background: #fff3e0; }
+
 /* === Photo Grid === */
 .photo-grid {
   display: grid;

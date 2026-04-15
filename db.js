@@ -17,20 +17,22 @@ CREATE TABLE IF NOT EXISTS teams (
     robot_image_url TEXT
 );
 
-CREATE TABLE IF NOT EXISTS photos (
+CREATE TABLE IF NOT EXISTS entries (
     uuid        TEXT PRIMARY KEY,
     team_number INTEGER NOT NULL,
-    filename    TEXT NOT NULL,
+    role        TEXT,
+    filename    TEXT,
     scout_name  TEXT,
     notes       TEXT,
-    taken_at    TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
     synced_at   TEXT NOT NULL DEFAULT (datetime('now')),
     file_size   INTEGER,
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
-CREATE INDEX IF NOT EXISTS idx_photos_team ON photos(team_number);
-CREATE INDEX IF NOT EXISTS idx_photos_scout ON photos(scout_name);
+CREATE INDEX IF NOT EXISTS idx_entries_team ON entries(team_number);
+CREATE INDEX IF NOT EXISTS idx_entries_scout ON entries(scout_name);
+
 `;
 
 function persist() {

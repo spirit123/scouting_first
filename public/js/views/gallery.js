@@ -35,7 +35,7 @@ const GalleryView = {
           <div class="team-number">${t.teamNumber}</div>
           <div class="team-name">${UI.esc(t.teamName)}</div>
           <div class="team-location">${UI.esc([t.city, t.state].filter(Boolean).join(', '))}</div>
-          ${t.photoCount ? `<div class="photo-count">${t.photoCount} photo${t.photoCount !== 1 ? 's' : ''}</div>` : ''}
+          ${t.entryCount ? `<div class="photo-count">${t.entryCount} entr${t.entryCount !== 1 ? 'ies' : 'y'}</div>` : ''}
         </a>
       `).join('')}
     </div>`;

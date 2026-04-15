@@ -2,7 +2,6 @@
 const Sync = {
   BATCH_SIZE: 5,
   _syncing: false,
-  _onProgress: null,
 
   getServerURL() {
     const ip = localStorage.getItem('serverIP') || window.location.hostname;
@@ -10,7 +9,6 @@ const Sync = {
     return `http://${ip}:${port}`;
   },
 
-  // Check if server is reachable
   async checkConnection() {
     try {
       const res = await fetch(`${this.getServerURL()}/api/status`, {
@@ -20,22 +18,18 @@ const Sync = {
         const data = await res.json();
         return { online: true, ...data };
       }
-    } catch (e) {
-      // Offline
-    }
+    } catch (e) {}
     return { online: false };
   },
 
-  // Sync all unsynced photos to server
   async syncAll(onProgress) {
     if (this._syncing) throw new Error('Sync already in progress');
     this._syncing = true;
-    this._onProgress = onProgress;
 
     const results = { synced: 0, duplicates: 0, errors: 0, total: 0 };
 
     try {
-      const unsynced = await DB.getUnsyncedPhotos();
+      const unsynced = await DB.getUnsyncedEntries();
       results.total = unsynced.length;
 
       if (unsynced.length === 0) {
@@ -43,7 +37,6 @@ const Sync = {
         return results;
       }
 
-      // Process in batches
       for (let i = 0; i < unsynced.length; i += this.BATCH_SIZE) {
         const batch = unsynced.slice(i, i + this.BATCH_SIZE);
         const batchResult = await this._syncBatch(batch);
@@ -52,12 +45,10 @@ const Sync = {
         results.duplicates += batchResult.duplicates.length;
         results.errors += batchResult.errors.length;
 
-        // Mark synced/duplicate photos
         for (const uuid of [...batchResult.synced, ...batchResult.duplicates]) {
           await DB.markSynced(uuid);
         }
 
-        // Report progress
         if (onProgress) {
           onProgress({
             done: Math.min(i + this.BATCH_SIZE, unsynced.length),
@@ -68,31 +59,29 @@ const Sync = {
       }
     } finally {
       this._syncing = false;
-      this._onProgress = null;
     }
 
     return results;
   },
 
-  // Sync a single batch of photos
-  async _syncBatch(photos) {
+  async _syncBatch(entries) {
     const formData = new FormData();
 
-    // Build metadata array
-    const metadata = photos.map(p => ({
-      uuid: p.uuid,
-      teamNumber: p.teamNumber,
-      scoutName: p.scoutName,
-      notes: p.notes,
-      takenAt: p.takenAt,
+    const metadata = entries.map(e => ({
+      uuid: e.uuid,
+      teamNumber: e.teamNumber,
+      role: e.role,
+      scoutName: e.scoutName,
+      notes: e.notes,
+      createdAt: e.createdAt,
     }));
 
     formData.append('metadata', JSON.stringify(metadata));
 
-    // Append photo files
-    for (const p of photos) {
-      if (p.imageBlob) {
-        formData.append(`photo_${p.uuid}`, p.imageBlob, `${p.uuid}.jpg`);
+    // Append photo files only for entries that have one
+    for (const e of entries) {
+      if (e.imageBlob) {
+        formData.append(`photo_${e.uuid}`, e.imageBlob, `${e.uuid}.jpg`);
       }
     }
 

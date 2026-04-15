@@ -10,7 +10,7 @@ const ExportView = {
       // offline
     }
 
-    const localCount = (await DB.getUnsyncedPhotos()).length;
+    const localCount = (await DB.getUnsyncedEntries()).length;
 
     container.innerHTML = `
       <div class="section-header">
@@ -24,8 +24,8 @@ const ExportView = {
           <div class="stat-label">Teams</div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">${stats.photoCount}</div>
-          <div class="stat-label">Photos</div>
+          <div class="stat-value">${stats.entryCount || 0}</div>
+          <div class="stat-label">Entries</div>
         </div>
         <div class="stat-card">
           <div class="stat-value">${stats.scoutCount}</div>
@@ -34,7 +34,7 @@ const ExportView = {
       </div>
 
       ${localCount > 0 ? `<div class="card" style="background: #fff3cd; border: 1px solid #ffc107; margin-bottom: 12px;">
-        <strong>⚠️ ${localCount} photos not yet synced.</strong> Sync before exporting to include all data.
+        <strong>⚠️ ${localCount} entries not yet synced.</strong> Sync before exporting to include all data.
       </div>` : ''}
 
       <div class="card">

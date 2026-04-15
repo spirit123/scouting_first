@@ -84,16 +84,16 @@ const SettingsView = {
     });
 
     UI.$('#btn-clear-synced').addEventListener('click', async () => {
-      if (!confirm('Remove synced photos from local storage? (They are safe on the server)')) return;
-      const all = await DB.getAllPhotos();
+      if (!confirm('Remove synced entries from local storage? (They are safe on the server)')) return;
+      const all = await DB.getAllEntries();
       let cleared = 0;
-      for (const p of all) {
-        if (p.synced) {
-          await DB.deletePhoto(p.uuid);
+      for (const e of all) {
+        if (e.synced) {
+          await DB.deleteEntry(e.uuid);
           cleared++;
         }
       }
-      UI.toast(`Cleared ${cleared} synced photos`, 'success');
+      UI.toast(`Cleared ${cleared} synced entries`, 'success');
       this._showStorageInfo();
     });
 
@@ -108,12 +108,12 @@ const SettingsView = {
   },
 
   async _showStorageInfo() {
-    const all = await DB.getAllPhotos();
-    const synced = all.filter(p => p.synced).length;
+    const all = await DB.getAllEntries();
+    const synced = all.filter(e => e.synced).length;
     const unsynced = all.length - synced;
-    const totalSize = all.reduce((sum, p) => sum + (p.imageBlob ? p.imageBlob.size : 0), 0);
+    const totalSize = all.reduce((sum, e) => sum + (e.imageBlob ? e.imageBlob.size : 0), 0);
 
     UI.$('#storage-info').textContent =
-      `${all.length} photos locally (${synced} synced, ${unsynced} pending) · ${UI.formatSize(totalSize)}`;
+      `${all.length} entries locally (${synced} synced, ${unsynced} pending) · ${UI.formatSize(totalSize)}`;
   },
 };

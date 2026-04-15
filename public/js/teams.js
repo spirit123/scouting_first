@@ -20,6 +20,7 @@ const Teams = {
           country: t.country,
           robotImageUrl: t.robot_image_url || null,
           photoCount: t.photo_count || 0,
+          entryCount: t.entry_count || 0,
         }));
         // Cache in IndexedDB for offline use
         await DB.saveTeams(this._teams);

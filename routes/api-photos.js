@@ -5,49 +5,51 @@ const router = express.Router();
 const db = require('../db');
 const config = require('../config');
 
-// GET /api/photos — list photo metadata, optional ?team=NUM
+// GET /api/entries — list entries, optional ?team=NUM
 router.get('/', (req, res) => {
   const team = req.query.team ? parseInt(req.query.team, 10) : null;
 
-  let photos;
+  let entries;
   if (team) {
-    photos = db.all(
-      'SELECT uuid, team_number, scout_name, notes, taken_at, synced_at, file_size FROM photos WHERE team_number = ? ORDER BY taken_at DESC',
+    entries = db.all(
+      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries WHERE team_number = ? ORDER BY created_at DESC',
       [team]
     );
   } else {
-    photos = db.all(
-      'SELECT uuid, team_number, scout_name, notes, taken_at, synced_at, file_size FROM photos ORDER BY taken_at DESC'
+    entries = db.all(
+      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries ORDER BY created_at DESC'
     );
   }
 
-  res.json(photos);
+  res.json(entries);
 });
 
-// GET /api/photos/:uuid/image — serve the actual JPEG
+// GET /api/entries/:uuid/image — serve the actual JPEG
 router.get('/:uuid/image', (req, res) => {
-  const photo = db.get('SELECT filename FROM photos WHERE uuid = ?', [req.params.uuid]);
-  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+  const entry = db.get('SELECT filename FROM entries WHERE uuid = ?', [req.params.uuid]);
+  if (!entry || !entry.filename) return res.status(404).json({ error: 'Photo not found' });
 
-  const filePath = path.join(config.uploadsDir, photo.filename);
+  const filePath = path.join(config.uploadsDir, entry.filename);
   if (!fs.existsSync(filePath)) return res.status(404).json({ error: 'File missing' });
 
   res.sendFile(filePath);
 });
 
-// DELETE /api/photos/:uuid — remove a photo
+// DELETE /api/entries/:uuid — remove an entry
 router.delete('/:uuid', (req, res) => {
-  const photo = db.get('SELECT filename FROM photos WHERE uuid = ?', [req.params.uuid]);
-  if (!photo) return res.status(404).json({ error: 'Photo not found' });
+  const entry = db.get('SELECT filename FROM entries WHERE uuid = ?', [req.params.uuid]);
+  if (!entry) return res.status(404).json({ error: 'Entry not found' });
 
-  // Delete file
-  const filePath = path.join(config.uploadsDir, photo.filename);
-  if (fs.existsSync(filePath)) {
-    fs.unlinkSync(filePath);
+  // Delete file if it exists
+  if (entry.filename) {
+    const filePath = path.join(config.uploadsDir, entry.filename);
+    if (fs.existsSync(filePath)) {
+      fs.unlinkSync(filePath);
+    }
   }
 
   // Delete DB record
-  db.run('DELETE FROM photos WHERE uuid = ?', [req.params.uuid]);
+  db.run('DELETE FROM entries WHERE uuid = ?', [req.params.uuid]);
 
   res.json({ ok: true });
 });
