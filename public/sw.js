@@ -1,4 +1,4 @@
-const CACHE_VERSION = 'ftc-scout-v19';
+const CACHE_VERSION = 'ftc-scout-v20';
 const PRECACHE_URLS = [
   '/',
   '/index.html',
@@ -15,6 +15,7 @@ const PRECACHE_URLS = [
   '/js/views/gallery.js',
   '/js/views/team-detail.js',
   '/js/views/export.js',
+  '/js/views/alliances.js',
   '/js/views/admin.js',
   '/js/views/settings.js',
   '/icons/icon-192.svg',

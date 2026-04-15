@@ -22,6 +22,7 @@ const GalleryView = {
       <div class="section-header">
         <span class="section-title">Teams</span>
         <div style="display:flex; gap:6px;">
+          <a href="#/alliances" class="btn btn-secondary btn-small">Alliances</a>
           <a href="#/admin" class="btn btn-secondary btn-small">Manage</a>
           <a href="#/export" class="btn btn-secondary btn-small">Export</a>
         </div>
