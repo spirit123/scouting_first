@@ -5,8 +5,7 @@ const TeamDetailView = {
     const team = Teams.get(num);
     const teamName = team ? team.teamName : 'Unknown Team';
     const teamInfo = team ? [team.city, team.state, team.country].filter(Boolean).join(', ') : '';
-    const scoutImg = team && team.latestPhotoUuid ? `/api/entries/${encodeURIComponent(team.latestPhotoUuid)}/image` : null;
-    const robotImg = scoutImg || (team ? team.robotImageUrl : null);
+    const robotImg = team ? team.robotImageUrl : null;
 
     container.innerHTML = `
       <div class="card">
@@ -18,17 +17,18 @@ const TeamDetailView = {
             ${teamInfo ? `<div style="font-size:12px; color:var(--text-secondary);">${UI.esc(teamInfo)}</div>` : ''}
           </div>
         </div>
-        ${robotImg ? `<img src="${UI.esc(robotImg)}" alt="Team ${num} robot" style="width:100%; max-height:250px; object-fit:contain; border-radius:8px; margin-top:10px;">` : ''}
+        <div id="team-all-photos"></div>
         <a href="#/scout/${num}" class="btn btn-primary mt-8">Scout This Team</a>
       </div>
       <div id="team-entries">Loading...</div>
     `;
 
-    await this._loadEntries(num);
+    await this._loadEntries(num, robotImg);
   },
 
-  async _loadEntries(teamNumber) {
+  async _loadEntries(teamNumber, robotImg) {
     const container = UI.$('#team-entries');
+    const photosContainer = UI.$('#team-all-photos');
     let serverEntries = [];
 
     try {
@@ -39,6 +39,39 @@ const TeamDetailView = {
     const localEntries = await DB.getEntriesByTeam(teamNumber);
     const localUnsynced = localEntries.filter(e => !e.synced);
 
+    // Collect ALL photos: pre-loaded robot image + local unsynced + server
+    const allPhotos = [];
+    if (robotImg) {
+      allPhotos.push({ src: robotImg, label: 'Team photo' });
+    }
+    for (const e of localUnsynced) {
+      if (e.imageBlob) {
+        allPhotos.push({ src: Camera.createPreviewURL(e.imageBlob), label: `${e.scoutName || 'Scout'} (pending)` });
+      }
+    }
+    for (const e of serverEntries) {
+      if (e.has_photo) {
+        allPhotos.push({ src: `/api/entries/${encodeURIComponent(e.uuid)}/image`, label: e.scout_name || 'Scout' });
+      }
+    }
+
+    // Render photos grid
+    if (allPhotos.length > 0) {
+      photosContainer.innerHTML = `<div class="photo-grid" style="margin-top:10px;">
+        ${allPhotos.map(p => `<div class="photo-thumb" title="${UI.esc(p.label)}">
+          <img src="${UI.esc(p.src)}" alt="${UI.esc(p.label)}" loading="lazy">
+        </div>`).join('')}
+      </div>`;
+
+      photosContainer.querySelectorAll('.photo-thumb').forEach(thumb => {
+        thumb.addEventListener('click', () => {
+          const img = thumb.querySelector('img');
+          if (img && img.src) App.showPhotoViewer(img.src);
+        });
+      });
+    }
+
+    // Render entries list
     if (serverEntries.length === 0 && localUnsynced.length === 0) {
       UI.showEmpty(container, '📋', 'No scouting data yet for this team');
       return;
@@ -52,56 +85,29 @@ const TeamDetailView = {
     if (localUnsynced.length > 0) {
       html += `<div class="section-header"><span class="section-title">Pending Upload (${localUnsynced.length})</span></div>`;
       for (const e of localUnsynced) {
-        html += this._renderEntry(e, {
-          imgSrc: e.imageBlob ? Camera.createPreviewURL(e.imageBlob) : null,
-          roleColors, roleIcons, isLocal: true
-        });
+        html += this._renderEntry(e, { roleColors, roleIcons, isLocal: true });
       }
     }
 
     // Server entries
     if (serverEntries.length > 0) {
       html += `<div class="section-header mt-16"><span class="section-title">Synced (${serverEntries.length})</span></div>`;
-
-      // Photos grid
-      const withPhotos = serverEntries.filter(e => e.has_photo);
-      if (withPhotos.length > 0) {
-        html += '<div class="photo-grid mb-12">';
-        for (const e of withPhotos) {
-          html += `<div class="photo-thumb" data-uuid="${UI.esc(e.uuid)}">
-            <img src="/api/entries/${encodeURIComponent(e.uuid)}/image" alt="Team ${teamNumber}" loading="lazy">
-          </div>`;
-        }
-        html += '</div>';
-      }
-
-      // Entry details
       for (const e of serverEntries) {
-        html += this._renderEntry(e, {
-          imgSrc: e.has_photo ? `/api/entries/${encodeURIComponent(e.uuid)}/image` : null,
-          roleColors, roleIcons, isLocal: false
-        });
+        html += this._renderEntry(e, { roleColors, roleIcons, isLocal: false });
       }
     }
 
     container.innerHTML = html;
-
-    // Photo viewer handlers
-    container.querySelectorAll('.photo-thumb').forEach(thumb => {
-      thumb.addEventListener('click', () => {
-        const img = thumb.querySelector('img');
-        if (img && img.src) App.showPhotoViewer(img.src);
-      });
-    });
   },
 
   _renderEntry(e, { roleColors, roleIcons, isLocal }) {
-    const role = e.role || (isLocal ? e.role : e.role);
+    const role = e.role;
     const color = roleColors[role] || '#999';
     const icon = roleIcons[role] || '📋';
     const scout = (isLocal ? e.scoutName : e.scout_name) || 'Unknown';
     const notes = e.notes || '';
     const time = isLocal ? e.createdAt : e.created_at;
+    const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
 
     return `<div class="card" style="padding:10px; border-left: 4px solid ${color};">
       <div style="display:flex; align-items:center; gap:8px;">
@@ -109,6 +115,7 @@ const TeamDetailView = {
         <div style="flex:1;">
           <span style="font-weight:600; color:${color};">${UI.esc(role || 'no role')}</span>
           <span style="color:var(--text-secondary);"> · ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
+          ${hasPhoto ? ' 📷' : ''}
         </div>
       </div>
       ${notes ? `<div style="font-size:13px; margin-top:4px;">${UI.esc(notes)}</div>` : ''}
