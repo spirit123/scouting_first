@@ -18,6 +18,7 @@ const AlliancesView = {
       <div class="section-header">
         <span class="section-title">Alliance Selection</span>
         <div style="display:flex; gap:6px;">
+          <a href="#/gallery" class="btn btn-secondary btn-small">← Teams</a>
           <button id="btn-reset-alliances" class="btn btn-danger btn-small">Reset</button>
         </div>
       </div>
