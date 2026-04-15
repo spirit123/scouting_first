@@ -40,12 +40,12 @@ const App = {
     this.updateQueueBadge();
 
     // Initial route
-    if (!window.location.hash) window.location.hash = '#/scout';
+    if (!window.location.hash) window.location.hash = '#/gallery';
     else this.route();
   },
 
   route() {
-    const hash = window.location.hash || '#/scout';
+    const hash = window.location.hash || '#/gallery';
     const container = UI.$('#app');
 
     // Update active tab
@@ -82,7 +82,7 @@ const App = {
       SettingsView.render(container);
       this._currentView = 'settings';
     } else {
-      window.location.hash = '#/scout';
+      window.location.hash = '#/gallery';
     }
   },
 
