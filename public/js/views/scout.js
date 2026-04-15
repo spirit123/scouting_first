@@ -163,11 +163,16 @@ const ScoutView = {
   async _loadTeamData(teamNumber) {
     // Gather entries from local + server
     const localEntries = await DB.getEntriesByTeam(teamNumber);
+    console.log('[Scout] Local entries for team', teamNumber, ':', localEntries.length, localEntries);
+
     let serverEntries = [];
     try {
       const res = await fetch(`/api/entries?team=${teamNumber}`);
       if (res.ok) serverEntries = await res.json();
-    } catch (e) {}
+    } catch (e) {
+      console.log('[Scout] Server fetch failed:', e.message);
+    }
+    console.log('[Scout] Server entries for team', teamNumber, ':', serverEntries.length, serverEntries);
 
     // Merge: local unsynced + server (avoid duplicates by uuid)
     const serverUuids = new Set(serverEntries.map(e => e.uuid));
@@ -175,15 +180,18 @@ const ScoutView = {
       ...localEntries.filter(e => !serverUuids.has(e.uuid)),
       ...serverEntries,
     ];
+    console.log('[Scout] Merged entries:', allEntries.length);
 
     // Show existing data panel
     this._showExistingData(allEntries);
 
     // Pre-fill form from the most recent entry
     const latest = this._getLatestEntry(allEntries);
+    console.log('[Scout] Latest entry:', latest);
     if (latest) {
       const role = latest.role;
       const notes = latest.notes || '';
+      console.log('[Scout] Pre-filling: role=' + role + ', notes=' + notes);
 
       // Set role
       this._selectedRole = role;
@@ -194,6 +202,7 @@ const ScoutView = {
       // Set notes
       UI.$('#entry-notes').value = notes;
     } else {
+      console.log('[Scout] No entries found, resetting form');
       // No existing data — reset form
       this._selectedRole = null;
       UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
