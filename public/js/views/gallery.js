@@ -110,9 +110,14 @@ const GalleryView = {
           badge = '<div style="font-size:11px; color:var(--success); font-weight:600;">✓ Done</div>';
         }
 
+        // Prefer scout photo over pre-loaded robot image
+        const imgSrc = t.latestPhotoUuid
+          ? `/api/entries/${encodeURIComponent(t.latestPhotoUuid)}/image`
+          : t.robotImageUrl || '';
+
         return `
         <a href="#/team/${t.teamNumber}" class="team-card" style="${borderStyle}">
-          ${t.robotImageUrl ? `<img src="${UI.esc(t.robotImageUrl)}" alt="Team ${t.teamNumber}" class="team-card-img" loading="lazy">` : ''}
+          ${imgSrc ? `<img src="${UI.esc(imgSrc)}" alt="Team ${t.teamNumber}" class="team-card-img" loading="lazy">` : ''}
           <div class="team-number">${t.teamNumber}</div>
           <div class="team-name">${UI.esc(t.teamName)}</div>
           <div class="team-location">${UI.esc([t.city, t.state].filter(Boolean).join(', '))}</div>

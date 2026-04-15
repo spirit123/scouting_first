@@ -21,6 +21,7 @@ const Teams = {
           robotImageUrl: t.robot_image_url || null,
           photoCount: t.photo_count || 0,
           entryCount: t.entry_count || 0,
+          latestPhotoUuid: t.latest_photo_uuid || null,
         }));
         // Cache in IndexedDB for offline use
         await DB.saveTeams(this._teams);

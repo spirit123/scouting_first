@@ -7,7 +7,8 @@ router.get('/', (req, res) => {
   const teams = db.all(`
     SELECT t.*,
       COUNT(e.uuid) as entry_count,
-      COUNT(e.filename) as photo_count
+      COUNT(e.filename) as photo_count,
+      (SELECT e2.uuid FROM entries e2 WHERE e2.team_number = t.team_number AND e2.filename IS NOT NULL ORDER BY e2.created_at DESC LIMIT 1) as latest_photo_uuid
     FROM teams t
     LEFT JOIN entries e ON t.team_number = e.team_number
     GROUP BY t.team_number

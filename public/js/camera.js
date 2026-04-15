@@ -3,49 +3,32 @@ const Camera = {
   MAX_WIDTH: 1920,
   JPEG_QUALITY: 0.8,
 
-  // Create a hidden file input for photo capture
-  createInput() {
-    const input = document.createElement('input');
-    input.type = 'file';
-    input.accept = 'image/*';
-    input.capture = 'environment';
-    return input;
-  },
-
   // Trigger photo capture and return a resized Blob
   capture() {
-    return new Promise((resolve, reject) => {
-      const input = this.createInput();
-
-      input.onchange = async () => {
-        if (!input.files || !input.files[0]) {
-          reject(new Error('No file selected'));
-          return;
-        }
-        try {
-          const blob = await this.resizeImage(input.files[0]);
-          resolve(blob);
-        } catch (err) {
-          reject(err);
-        }
-      };
-
-      // Handle cancel
-      input.addEventListener('cancel', () => reject(new Error('Cancelled')));
-
-      input.click();
-    });
+    return this._pickFile(true);
   },
 
   // Allow picking from gallery (no capture attribute)
   pick() {
+    return this._pickFile(false);
+  },
+
+  _pickFile(useCamera) {
     return new Promise((resolve, reject) => {
       const input = document.createElement('input');
       input.type = 'file';
       input.accept = 'image/*';
-      // No capture attribute — opens file picker / gallery
+      if (useCamera) input.capture = 'environment';
+      input.style.display = 'none';
+      document.body.appendChild(input);
+
+      let resolved = false;
 
       input.onchange = async () => {
+        if (resolved) return;
+        resolved = true;
+        document.body.removeChild(input);
+
         if (!input.files || !input.files[0]) {
           reject(new Error('No file selected'));
           return;
@@ -58,7 +41,19 @@ const Camera = {
         }
       };
 
-      input.addEventListener('cancel', () => reject(new Error('Cancelled')));
+      // Detect cancel: when window regains focus and no file was selected
+      const onFocus = () => {
+        setTimeout(() => {
+          if (!resolved) {
+            resolved = true;
+            if (input.parentNode) document.body.removeChild(input);
+            reject(new Error('Cancelled'));
+          }
+          window.removeEventListener('focus', onFocus);
+        }, 500);
+      };
+      window.addEventListener('focus', onFocus);
+
       input.click();
     });
   },

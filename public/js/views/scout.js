@@ -214,10 +214,12 @@ const ScoutView = {
     const panel = UI.$('#team-info-panel');
     panel.classList.remove('hidden');
 
-    // Show robot image if available
+    // Show robot image: prefer scout photo over pre-loaded image
     const imgContainer = UI.$('#team-robot-img');
-    if (team && team.robotImageUrl) {
-      imgContainer.innerHTML = `<img src="${UI.esc(team.robotImageUrl)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
+    const scoutImg = team && team.latestPhotoUuid ? `/api/entries/${encodeURIComponent(team.latestPhotoUuid)}/image` : null;
+    const robotImg = scoutImg || (team ? team.robotImageUrl : null);
+    if (robotImg) {
+      imgContainer.innerHTML = `<img src="${UI.esc(robotImg)}" alt="Team ${teamNumber} robot" style="width:100%; max-height:200px; object-fit:contain; border-radius:8px; margin-bottom:10px;">`;
     } else {
       imgContainer.innerHTML = '';
     }

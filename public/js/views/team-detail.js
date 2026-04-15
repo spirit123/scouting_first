@@ -5,7 +5,8 @@ const TeamDetailView = {
     const team = Teams.get(num);
     const teamName = team ? team.teamName : 'Unknown Team';
     const teamInfo = team ? [team.city, team.state, team.country].filter(Boolean).join(', ') : '';
-    const robotImg = team ? team.robotImageUrl : null;
+    const scoutImg = team && team.latestPhotoUuid ? `/api/entries/${encodeURIComponent(team.latestPhotoUuid)}/image` : null;
+    const robotImg = scoutImg || (team ? team.robotImageUrl : null);
 
     container.innerHTML = `
       <div class="card">
