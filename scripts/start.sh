@@ -13,26 +13,11 @@ termux-wake-lock 2>/dev/null || true
 # Try to detect hotspot IP
 HOTSPOT_IP=""
 
-# Method 1: ifconfig (works on Termux without root)
-for iface in wlan0 ap0 swlan0 wlan1; do
-  IP=$(ifconfig "$iface" 2>/dev/null | grep 'inet ' | awk '{print $2}')
-  if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
-    HOTSPOT_IP="$IP"
-    echo "Detected IP: $HOTSPOT_IP (interface: $iface)"
-    break
-  fi
-done
+# Grab any non-localhost IP from ifconfig
+HOTSPOT_IP=$(ifconfig 2>/dev/null | grep 'inet ' | grep -v '127.0.0.1' | awk '{print $2}' | head -1)
 
-# Method 2: fallback to ip addr if ifconfig didn't work
-if [ -z "$HOTSPOT_IP" ]; then
-  for iface in wlan0 ap0 swlan0 wlan1; do
-    IP=$(ip addr show "$iface" 2>/dev/null | grep 'inet ' | awk '{print $2}' | cut -d/ -f1)
-    if [ -n "$IP" ] && [ "$IP" != "127.0.0.1" ]; then
-      HOTSPOT_IP="$IP"
-      echo "Detected IP: $HOTSPOT_IP (interface: $iface)"
-      break
-    fi
-  done
+if [ -n "$HOTSPOT_IP" ]; then
+  echo "Detected IP: $HOTSPOT_IP"
 fi
 
 if [ -z "$HOTSPOT_IP" ]; then
