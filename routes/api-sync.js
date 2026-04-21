@@ -14,8 +14,9 @@ const upload = multer({
 // POST /api/sync — bulk upload from scout
 // Expects multipart form with:
 //   - metadata: JSON string array of { uuid, teamNumber, role, scoutName, notes, createdAt,
-//                                       passesBumps, underTrenches, climbLevel }
+//                                       passesBumps, underTrenches, climbLevel, drivetrain }
 //     passesBumps/underTrenches: 'yes'|'no'|null ; climbLevel: 'L1'|'L2'|'L3'|null
+//     drivetrain: 'tank'|'swerve'|'mecanum'|'other'|null
 //   - photo_<uuid>: file for each entry that has a photo (optional)
 router.post('/', upload.any(), (req, res) => {
   const synced = [];
@@ -43,9 +44,11 @@ router.post('/', upload.any(), (req, res) => {
 
   const normTri = (v) => (v === 'yes' || v === 'no') ? v : null;
   const normClimb = (v) => (v === 'L1' || v === 'L2' || v === 'L3') ? v : null;
+  const DRIVETRAINS = new Set(['tank', 'swerve', 'mecanum', 'other']);
+  const normDrivetrain = (v) => DRIVETRAINS.has(v) ? v : null;
 
   for (const entry of metadata) {
-    const { uuid, teamNumber, role, scoutName, notes, createdAt, passesBumps, underTrenches, climbLevel } = entry;
+    const { uuid, teamNumber, role, scoutName, notes, createdAt, passesBumps, underTrenches, climbLevel, drivetrain } = entry;
 
     if (!uuid || !teamNumber || !createdAt) {
       errors.push({ uuid, reason: 'Missing required fields (uuid, teamNumber, createdAt)' });
@@ -82,8 +85,8 @@ router.post('/', upload.any(), (req, res) => {
 
       // Insert into DB
       db.run(
-        'INSERT INTO entries (uuid, team_number, role, filename, scout_name, notes, created_at, file_size, passes_bumps, under_trenches, climb_level) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [uuid, teamNumber, role || null, filename, scoutName || null, notes || null, createdAt, fileSize, normTri(passesBumps), normTri(underTrenches), normClimb(climbLevel)]
+        'INSERT INTO entries (uuid, team_number, role, filename, scout_name, notes, created_at, file_size, passes_bumps, under_trenches, climb_level, drivetrain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuid, teamNumber, role || null, filename, scoutName || null, notes || null, createdAt, fileSize, normTri(passesBumps), normTri(underTrenches), normClimb(climbLevel), normDrivetrain(drivetrain)]
       );
 
       synced.push(uuid);

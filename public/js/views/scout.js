@@ -12,6 +12,7 @@ const ScoutView = {
   _passesBumps: null,    // 'yes' | 'no' | null
   _underTrenches: null,  // 'yes' | 'no' | null
   _climbLevel: null,     // 'L1' | 'L2' | 'L3' | null
+  _drivetrain: null,     // 'tank' | 'swerve' | 'mecanum' | 'other' | null
   _photoBlob: null,
   _photoURL: null,
   _assignments: [],
@@ -90,6 +91,16 @@ const ScoutView = {
               <button class="climb-btn" data-value="L1">L1</button>
               <button class="climb-btn" data-value="L2">L2</button>
               <button class="climb-btn" data-value="L3">L3</button>
+            </div>
+          </div>
+          <div class="capability-row">
+            <div class="capability-label">Drivetrain</div>
+            <div class="drivetrain-toggle" data-field="drivetrain">
+              <button class="drivetrain-btn active" data-value="">? Unknown</button>
+              <button class="drivetrain-btn" data-value="tank">Tank</button>
+              <button class="drivetrain-btn" data-value="swerve">Swerve</button>
+              <button class="drivetrain-btn" data-value="mecanum">Mecanum</button>
+              <button class="drivetrain-btn" data-value="other">Other</button>
             </div>
           </div>
         </div>
@@ -178,6 +189,17 @@ const ScoutView = {
           group.querySelectorAll('.climb-btn').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           this._climbLevel = btn.dataset.value || null;
+        });
+      });
+    });
+
+    // Drivetrain selector
+    UI.$$('.drivetrain-toggle').forEach(group => {
+      group.querySelectorAll('.drivetrain-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.drivetrain-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this._drivetrain = btn.dataset.value || null;
         });
       });
     });
@@ -337,9 +359,10 @@ const ScoutView = {
       const passesBumps = latest.passesBumps ?? latest.passes_bumps ?? null;
       const underTrenches = latest.underTrenches ?? latest.under_trenches ?? null;
       const climbLevel = latest.climbLevel ?? latest.climb_level ?? null;
+      const drivetrain = latest.drivetrain ?? null;
       UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes
         + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches
-        + ', climbLevel=' + climbLevel);
+        + ', climbLevel=' + climbLevel + ', drivetrain=' + drivetrain);
 
       // Set roles
       this._selectedRoles = roles.slice();
@@ -351,9 +374,11 @@ const ScoutView = {
       this._passesBumps = passesBumps;
       this._underTrenches = underTrenches;
       this._climbLevel = climbLevel;
+      this._drivetrain = drivetrain;
       this._setTriToggle('passesBumps', passesBumps);
       this._setTriToggle('underTrenches', underTrenches);
       this._setClimbToggle(climbLevel);
+      this._setDrivetrainToggle(drivetrain);
 
       // Set notes
       UI.$('#entry-notes').value = notes;
@@ -365,9 +390,11 @@ const ScoutView = {
       this._passesBumps = null;
       this._underTrenches = null;
       this._climbLevel = null;
+      this._drivetrain = null;
       this._setTriToggle('passesBumps', null);
       this._setTriToggle('underTrenches', null);
       this._setClimbToggle(null);
+      this._setDrivetrainToggle(null);
       UI.$('#entry-notes').value = '';
     }
 
@@ -420,16 +447,23 @@ const ScoutView = {
     }
 
     // Capability aggregate across entries
-    const capAgg = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0, climb: { L1: 0, L2: 0, L3: 0 } };
+    const capAgg = {
+      bumpsYes: 0, bumpsNo: 0,
+      trenchesYes: 0, trenchesNo: 0,
+      climb: { L1: 0, L2: 0, L3: 0 },
+      drive: { tank: 0, swerve: 0, mecanum: 0, other: 0 },
+    };
     for (const e of allEntries) {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
+      const dt = e.drivetrain;
       if (pb === 'yes') capAgg.bumpsYes++;
       else if (pb === 'no') capAgg.bumpsNo++;
       if (ut === 'yes') capAgg.trenchesYes++;
       else if (ut === 'no') capAgg.trenchesNo++;
       if (cl === 'L1' || cl === 'L2' || cl === 'L3') capAgg.climb[cl]++;
+      if (dt && capAgg.drive[dt] !== undefined) capAgg.drive[dt]++;
     }
     const capLine = [];
     if (capAgg.bumpsYes || capAgg.bumpsNo)
@@ -441,6 +475,11 @@ const ScoutView = {
       for (const lvl of ['L1', 'L2', 'L3']) if (capAgg.climb[lvl]) parts.push(`${lvl}×${capAgg.climb[lvl]}`);
       capLine.push(`Climb: ${parts.join(', ')}`);
     }
+    const driveParts = [];
+    for (const dt of ['tank', 'swerve', 'mecanum', 'other']) {
+      if (capAgg.drive[dt]) driveParts.push(`${dt}×${capAgg.drive[dt]}`);
+    }
+    if (driveParts.length) capLine.push(`Drive: ${driveParts.join(', ')}`);
     if (capLine.length > 0) {
       html += `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${capLine.join(' · ')}</div>`;
     }
@@ -457,6 +496,7 @@ const ScoutView = {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
+      const dt = e.drivetrain;
 
       const roleHtml = roles.map(r => {
         const color = roleColors[r] || '#999';
@@ -469,6 +509,7 @@ const ScoutView = {
       if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success);">🕳️✓</span>');
       else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error);">🕳️✗</span>');
       if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600;">🧗${cl}</span>`);
+      if (dt) capBadges.push(`<span title="Drivetrain: ${dt}" style="color:var(--text-secondary); font-weight:600;">⚙️${dt}</span>`);
 
       html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -528,6 +569,15 @@ const ScoutView = {
     });
   },
 
+  _setDrivetrainToggle(value) {
+    const group = document.querySelector('.drivetrain-toggle[data-field="drivetrain"]');
+    if (!group) return;
+    group.querySelectorAll('.drivetrain-btn').forEach(b => {
+      const btnValue = b.dataset.value || null;
+      b.classList.toggle('active', btnValue === (value || null));
+    });
+  },
+
   _updateSaveButton() {
     const ready = !!(this._selectedTeam && this._selectedRoles.length > 0);
     UI.$('#btn-save').disabled = !ready;
@@ -550,6 +600,7 @@ const ScoutView = {
       passesBumps: this._passesBumps || null,
       underTrenches: this._underTrenches || null,
       climbLevel: this._climbLevel || null,
+      drivetrain: this._drivetrain || null,
       imageBlob: this._photoBlob || null,
       synced: false,
       syncAttempts: 0,

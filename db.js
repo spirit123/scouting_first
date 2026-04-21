@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS entries (
     passes_bumps    TEXT,
     under_trenches  TEXT,
     climb_level     TEXT,
+    drivetrain      TEXT,
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
@@ -113,6 +114,9 @@ function migrate() {
   }
   if (!cols.includes('climb_level')) {
     db.run('ALTER TABLE entries ADD COLUMN climb_level TEXT');
+  }
+  if (!cols.includes('drivetrain')) {
+    db.run('ALTER TABLE entries ADD COLUMN drivetrain TEXT');
   }
 }
 

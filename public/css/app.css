@@ -321,6 +321,33 @@ textarea { resize: vertical; min-height: 70px; }
 .climb-btn.active[data-value="L2"] { background: #e3f2fd; color: #1976d2; }
 .climb-btn.active[data-value="L3"] { background: #e8f5e9; color: #388e3c; }
 
+/* === Drivetrain selector === */
+.drivetrain-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.drivetrain-btn {
+  padding: 8px 10px;
+  border: 0;
+  background: var(--card-bg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  min-height: 40px;
+  border-right: 1px solid var(--border);
+}
+.drivetrain-btn:last-child { border-right: 0; }
+.drivetrain-btn:active { transform: scale(0.96); }
+.drivetrain-btn.active[data-value=""]        { background: var(--border); color: var(--text); }
+.drivetrain-btn.active[data-value="tank"]    { background: #eceff1; color: #455a64; }
+.drivetrain-btn.active[data-value="swerve"]  { background: #e3f2fd; color: #1976d2; }
+.drivetrain-btn.active[data-value="mecanum"] { background: #fff3e0; color: #f57c00; }
+.drivetrain-btn.active[data-value="other"]   { background: #f3e5f5; color: #7b1fa2; }
+
 /* === Photo Grid === */
 .photo-grid {
   display: grid;

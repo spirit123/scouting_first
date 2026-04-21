@@ -115,15 +115,22 @@ const TeamDetailView = {
     let html = '';
 
     // Capability summary across all entries
-    const cap = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0, climb: { L1: 0, L2: 0, L3: 0 } };
+    const cap = {
+      bumpsYes: 0, bumpsNo: 0,
+      trenchesYes: 0, trenchesNo: 0,
+      climb: { L1: 0, L2: 0, L3: 0 },
+      drive: { tank: 0, swerve: 0, mecanum: 0, other: 0 },
+    };
     const allForCap = [...localUnsynced, ...serverEntries];
     for (const e of allForCap) {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
+      const dt = e.drivetrain;
       if (pb === 'yes') cap.bumpsYes++; else if (pb === 'no') cap.bumpsNo++;
       if (ut === 'yes') cap.trenchesYes++; else if (ut === 'no') cap.trenchesNo++;
       if (cl === 'L1' || cl === 'L2' || cl === 'L3') cap.climb[cl]++;
+      if (dt && cap.drive[dt] !== undefined) cap.drive[dt]++;
     }
     const capParts = [];
     if (cap.bumpsYes || cap.bumpsNo) capParts.push(`🚧 Bumps: ${cap.bumpsYes}✓ / ${cap.bumpsNo}✗`);
@@ -133,6 +140,11 @@ const TeamDetailView = {
       for (const lvl of ['L1', 'L2', 'L3']) if (cap.climb[lvl]) parts.push(`${lvl}×${cap.climb[lvl]}`);
       capParts.push(`🧗 Climb: ${parts.join(', ')}`);
     }
+    const driveParts = [];
+    for (const dt of ['tank', 'swerve', 'mecanum', 'other']) {
+      if (cap.drive[dt]) driveParts.push(`${dt}×${cap.drive[dt]}`);
+    }
+    if (driveParts.length) capParts.push(`⚙️ Drive: ${driveParts.join(', ')}`);
     if (capParts.length > 0) {
       html += `<div class="card" style="padding:8px; font-size:13px; color:var(--text-secondary);">${capParts.join(' · ')}</div>`;
     }
@@ -192,6 +204,7 @@ const TeamDetailView = {
     const pb = e.passesBumps ?? e.passes_bumps;
     const ut = e.underTrenches ?? e.under_trenches;
     const cl = e.climbLevel ?? e.climb_level;
+    const dt = e.drivetrain;
 
     const roleHtml = roles.length === 0
       ? `<span style="color:#999; font-weight:600;">📋 no role</span>`
@@ -207,6 +220,7 @@ const TeamDetailView = {
     if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success); font-size:12px;">🕳️✓</span>');
     else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error); font-size:12px;">🕳️✗</span>');
     if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600; font-size:12px;">🧗${cl}</span>`);
+    if (dt) capBadges.push(`<span title="Drivetrain: ${dt}" style="color:var(--text-secondary); font-weight:600; font-size:12px;">⚙️${UI.esc(dt)}</span>`);
 
     return `<div class="card" style="padding:10px; border-left: 4px solid ${borderColor};">
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
