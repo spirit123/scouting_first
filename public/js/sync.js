@@ -76,6 +76,7 @@ const Sync = {
       createdAt: e.createdAt,
       passesBumps: e.passesBumps || null,
       underTrenches: e.underTrenches || null,
+      climbLevel: e.climbLevel || null,
     }));
 
     formData.append('metadata', JSON.stringify(metadata));

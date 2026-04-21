@@ -6,14 +6,14 @@ const db = require('../db');
 router.get('/csv', (req, res) => {
   const entries = db.all(`
     SELECT e.uuid, e.team_number, t.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.file_size,
-           e.passes_bumps, e.under_trenches,
+           e.passes_bumps, e.under_trenches, e.climb_level,
            CASE WHEN e.filename IS NOT NULL THEN 1 ELSE 0 END as has_photo
     FROM entries e
     LEFT JOIN teams t ON e.team_number = t.team_number
     ORDER BY e.team_number, e.created_at
   `);
 
-  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size,passes_bumps,under_trenches';
+  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size,passes_bumps,under_trenches,climb_level';
   const rows = entries.map(e => {
     const esc = (v) => {
       if (v == null) return '';
@@ -21,7 +21,7 @@ router.get('/csv', (req, res) => {
       return s.includes(',') || s.includes('"') || s.includes('\n')
         ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size, e.passes_bumps, e.under_trenches]
+    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size, e.passes_bumps, e.under_trenches, e.climb_level]
       .map(esc).join(',');
   });
 
@@ -110,6 +110,8 @@ router.get('/html', (req, res) => {
         else if (e.passes_bumps === 'no') capBadges.push('<span style="color:#c62828;">🚧✗</span>');
         if (e.under_trenches === 'yes') capBadges.push('<span style="color:#4caf50;">🕳️✓</span>');
         else if (e.under_trenches === 'no') capBadges.push('<span style="color:#c62828;">🕳️✗</span>');
+        if (e.climb_level === 'L1' || e.climb_level === 'L2' || e.climb_level === 'L3')
+          capBadges.push(`<span style="color:#1976d2; font-weight:600;">🧗${e.climb_level}</span>`);
         html += `<div class="entry">
           ${badges}
           <strong>${e.scout_name || 'Unknown'}</strong> — ${e.notes || 'No notes'}

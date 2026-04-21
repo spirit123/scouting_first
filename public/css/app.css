@@ -296,6 +296,31 @@ textarea { resize: vertical; min-height: 70px; }
 .tri-btn.active[data-value="no"]  { background: #ffebee; color: var(--error); }
 .tri-btn.active[data-value=""]    { background: var(--border); color: var(--text); }
 
+/* === Climb-level selector === */
+.climb-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.climb-btn {
+  padding: 8px 12px;
+  border: 0;
+  background: var(--card-bg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  min-height: 40px;
+  border-right: 1px solid var(--border);
+}
+.climb-btn:last-child { border-right: 0; }
+.climb-btn:active { transform: scale(0.96); }
+.climb-btn.active[data-value=""]   { background: var(--border); color: var(--text); }
+.climb-btn.active[data-value="L1"] { background: #fff3e0; color: #f57c00; }
+.climb-btn.active[data-value="L2"] { background: #e3f2fd; color: #1976d2; }
+.climb-btn.active[data-value="L3"] { background: #e8f5e9; color: #388e3c; }
+
 /* === Photo Grid === */
 .photo-grid {
   display: grid;

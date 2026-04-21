@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS entries (
     file_size       INTEGER,
     passes_bumps    TEXT,
     under_trenches  TEXT,
+    climb_level     TEXT,
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
@@ -109,6 +110,9 @@ function migrate() {
   }
   if (!cols.includes('under_trenches')) {
     db.run('ALTER TABLE entries ADD COLUMN under_trenches TEXT');
+  }
+  if (!cols.includes('climb_level')) {
+    db.run('ALTER TABLE entries ADD COLUMN climb_level TEXT');
   }
 }
 

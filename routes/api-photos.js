@@ -12,12 +12,12 @@ router.get('/', (req, res) => {
   let entries;
   if (team) {
     entries = db.all(
-      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, passes_bumps, under_trenches, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries WHERE team_number = ? ORDER BY created_at DESC',
+      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, passes_bumps, under_trenches, climb_level, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries WHERE team_number = ? ORDER BY created_at DESC',
       [team]
     );
   } else {
     entries = db.all(
-      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, passes_bumps, under_trenches, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries ORDER BY created_at DESC'
+      'SELECT uuid, team_number, role, scout_name, notes, created_at, synced_at, file_size, passes_bumps, under_trenches, climb_level, CASE WHEN filename IS NOT NULL THEN 1 ELSE 0 END as has_photo FROM entries ORDER BY created_at DESC'
     );
   }
 

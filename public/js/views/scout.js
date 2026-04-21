@@ -11,6 +11,7 @@ const ScoutView = {
   _selectedRoles: [],
   _passesBumps: null,    // 'yes' | 'no' | null
   _underTrenches: null,  // 'yes' | 'no' | null
+  _climbLevel: null,     // 'L1' | 'L2' | 'L3' | null
   _photoBlob: null,
   _photoURL: null,
   _assignments: [],
@@ -80,6 +81,15 @@ const ScoutView = {
               <button class="tri-btn" data-value="yes">✓ Yes</button>
               <button class="tri-btn" data-value="no">✗ No</button>
               <button class="tri-btn active" data-value="">? Unknown</button>
+            </div>
+          </div>
+          <div class="capability-row">
+            <div class="capability-label">Max climb level</div>
+            <div class="climb-toggle" data-field="climbLevel">
+              <button class="climb-btn active" data-value="">? Unknown</button>
+              <button class="climb-btn" data-value="L1">L1</button>
+              <button class="climb-btn" data-value="L2">L2</button>
+              <button class="climb-btn" data-value="L3">L3</button>
             </div>
           </div>
         </div>
@@ -157,6 +167,17 @@ const ScoutView = {
           const value = btn.dataset.value || null;
           if (field === 'passesBumps') this._passesBumps = value;
           else if (field === 'underTrenches') this._underTrenches = value;
+        });
+      });
+    });
+
+    // Climb-level selector
+    UI.$$('.climb-toggle').forEach(group => {
+      group.querySelectorAll('.climb-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.climb-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this._climbLevel = btn.dataset.value || null;
         });
       });
     });
@@ -315,8 +336,10 @@ const ScoutView = {
       const notes = latest.notes || '';
       const passesBumps = latest.passesBumps ?? latest.passes_bumps ?? null;
       const underTrenches = latest.underTrenches ?? latest.under_trenches ?? null;
+      const climbLevel = latest.climbLevel ?? latest.climb_level ?? null;
       UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes
-        + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches);
+        + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches
+        + ', climbLevel=' + climbLevel);
 
       // Set roles
       this._selectedRoles = roles.slice();
@@ -327,8 +350,10 @@ const ScoutView = {
       // Set capabilities
       this._passesBumps = passesBumps;
       this._underTrenches = underTrenches;
+      this._climbLevel = climbLevel;
       this._setTriToggle('passesBumps', passesBumps);
       this._setTriToggle('underTrenches', underTrenches);
+      this._setClimbToggle(climbLevel);
 
       // Set notes
       UI.$('#entry-notes').value = notes;
@@ -339,8 +364,10 @@ const ScoutView = {
       UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
       this._passesBumps = null;
       this._underTrenches = null;
+      this._climbLevel = null;
       this._setTriToggle('passesBumps', null);
       this._setTriToggle('underTrenches', null);
+      this._setClimbToggle(null);
       UI.$('#entry-notes').value = '';
     }
 
@@ -393,20 +420,27 @@ const ScoutView = {
     }
 
     // Capability aggregate across entries
-    const capAgg = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0 };
+    const capAgg = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0, climb: { L1: 0, L2: 0, L3: 0 } };
     for (const e of allEntries) {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
+      const cl = e.climbLevel ?? e.climb_level;
       if (pb === 'yes') capAgg.bumpsYes++;
       else if (pb === 'no') capAgg.bumpsNo++;
       if (ut === 'yes') capAgg.trenchesYes++;
       else if (ut === 'no') capAgg.trenchesNo++;
+      if (cl === 'L1' || cl === 'L2' || cl === 'L3') capAgg.climb[cl]++;
     }
     const capLine = [];
     if (capAgg.bumpsYes || capAgg.bumpsNo)
       capLine.push(`Bumps: ${capAgg.bumpsYes}✓ / ${capAgg.bumpsNo}✗`);
     if (capAgg.trenchesYes || capAgg.trenchesNo)
       capLine.push(`Trenches: ${capAgg.trenchesYes}✓ / ${capAgg.trenchesNo}✗`);
+    if (capAgg.climb.L1 || capAgg.climb.L2 || capAgg.climb.L3) {
+      const parts = [];
+      for (const lvl of ['L1', 'L2', 'L3']) if (capAgg.climb[lvl]) parts.push(`${lvl}×${capAgg.climb[lvl]}`);
+      capLine.push(`Climb: ${parts.join(', ')}`);
+    }
     if (capLine.length > 0) {
       html += `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${capLine.join(' · ')}</div>`;
     }
@@ -422,6 +456,7 @@ const ScoutView = {
       const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
+      const cl = e.climbLevel ?? e.climb_level;
 
       const roleHtml = roles.map(r => {
         const color = roleColors[r] || '#999';
@@ -433,6 +468,7 @@ const ScoutView = {
       else if (pb === 'no') capBadges.push('<span title="No bumps" style="color:var(--error);">🚧✗</span>');
       if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success);">🕳️✓</span>');
       else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error);">🕳️✗</span>');
+      if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600;">🧗${cl}</span>`);
 
       html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -483,6 +519,15 @@ const ScoutView = {
     });
   },
 
+  _setClimbToggle(value) {
+    const group = document.querySelector('.climb-toggle[data-field="climbLevel"]');
+    if (!group) return;
+    group.querySelectorAll('.climb-btn').forEach(b => {
+      const btnValue = b.dataset.value || null;
+      b.classList.toggle('active', btnValue === (value || null));
+    });
+  },
+
   _updateSaveButton() {
     const ready = !!(this._selectedTeam && this._selectedRoles.length > 0);
     UI.$('#btn-save').disabled = !ready;
@@ -504,6 +549,7 @@ const ScoutView = {
       createdAt: new Date().toISOString(),
       passesBumps: this._passesBumps || null,
       underTrenches: this._underTrenches || null,
+      climbLevel: this._climbLevel || null,
       imageBlob: this._photoBlob || null,
       synced: false,
       syncAttempts: 0,

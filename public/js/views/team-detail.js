@@ -115,17 +115,24 @@ const TeamDetailView = {
     let html = '';
 
     // Capability summary across all entries
-    const cap = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0 };
+    const cap = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0, climb: { L1: 0, L2: 0, L3: 0 } };
     const allForCap = [...localUnsynced, ...serverEntries];
     for (const e of allForCap) {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
+      const cl = e.climbLevel ?? e.climb_level;
       if (pb === 'yes') cap.bumpsYes++; else if (pb === 'no') cap.bumpsNo++;
       if (ut === 'yes') cap.trenchesYes++; else if (ut === 'no') cap.trenchesNo++;
+      if (cl === 'L1' || cl === 'L2' || cl === 'L3') cap.climb[cl]++;
     }
     const capParts = [];
     if (cap.bumpsYes || cap.bumpsNo) capParts.push(`🚧 Bumps: ${cap.bumpsYes}✓ / ${cap.bumpsNo}✗`);
     if (cap.trenchesYes || cap.trenchesNo) capParts.push(`🕳️ Trenches: ${cap.trenchesYes}✓ / ${cap.trenchesNo}✗`);
+    if (cap.climb.L1 || cap.climb.L2 || cap.climb.L3) {
+      const parts = [];
+      for (const lvl of ['L1', 'L2', 'L3']) if (cap.climb[lvl]) parts.push(`${lvl}×${cap.climb[lvl]}`);
+      capParts.push(`🧗 Climb: ${parts.join(', ')}`);
+    }
     if (capParts.length > 0) {
       html += `<div class="card" style="padding:8px; font-size:13px; color:var(--text-secondary);">${capParts.join(' · ')}</div>`;
     }
@@ -184,6 +191,7 @@ const TeamDetailView = {
     const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
     const pb = e.passesBumps ?? e.passes_bumps;
     const ut = e.underTrenches ?? e.under_trenches;
+    const cl = e.climbLevel ?? e.climb_level;
 
     const roleHtml = roles.length === 0
       ? `<span style="color:#999; font-weight:600;">📋 no role</span>`
@@ -198,6 +206,7 @@ const TeamDetailView = {
     else if (pb === 'no') capBadges.push('<span title="No bumps" style="color:var(--error); font-size:12px;">🚧✗</span>');
     if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success); font-size:12px;">🕳️✓</span>');
     else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error); font-size:12px;">🕳️✗</span>');
+    if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600; font-size:12px;">🧗${cl}</span>`);
 
     return `<div class="card" style="padding:10px; border-left: 4px solid ${borderColor};">
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
