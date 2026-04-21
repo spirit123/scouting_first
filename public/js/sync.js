@@ -74,6 +74,8 @@ const Sync = {
       scoutName: e.scoutName,
       notes: e.notes,
       createdAt: e.createdAt,
+      passesBumps: e.passesBumps || null,
+      underTrenches: e.underTrenches || null,
     }));
 
     formData.append('metadata', JSON.stringify(metadata));

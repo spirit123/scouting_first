@@ -257,6 +257,45 @@ textarea { resize: vertical; min-height: 70px; }
 .role-btn.active[data-role="feeder"] { border-color: var(--feeder); color: var(--feeder); background: #e3f2fd; }
 .role-btn.active[data-role="defender"] { border-color: var(--defender); color: var(--defender); background: #fff3e0; }
 
+/* === Capability tri-toggle === */
+.capability-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+.capability-label {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+  flex: 1;
+  min-width: 140px;
+}
+.tri-toggle {
+  display: inline-flex;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.tri-btn {
+  padding: 8px 12px;
+  border: 0;
+  background: var(--card-bg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  min-height: 40px;
+  border-right: 1px solid var(--border);
+}
+.tri-btn:last-child { border-right: 0; }
+.tri-btn:active { transform: scale(0.96); }
+.tri-btn.active[data-value="yes"] { background: #e8f5e9; color: var(--success); }
+.tri-btn.active[data-value="no"]  { background: #ffebee; color: var(--error); }
+.tri-btn.active[data-value=""]    { background: var(--border); color: var(--text); }
+
 /* === Photo Grid === */
 .photo-grid {
   display: grid;

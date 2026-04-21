@@ -6,13 +6,14 @@ const db = require('../db');
 router.get('/csv', (req, res) => {
   const entries = db.all(`
     SELECT e.uuid, e.team_number, t.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.file_size,
+           e.passes_bumps, e.under_trenches,
            CASE WHEN e.filename IS NOT NULL THEN 1 ELSE 0 END as has_photo
     FROM entries e
     LEFT JOIN teams t ON e.team_number = t.team_number
     ORDER BY e.team_number, e.created_at
   `);
 
-  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size';
+  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size,passes_bumps,under_trenches';
   const rows = entries.map(e => {
     const esc = (v) => {
       if (v == null) return '';
@@ -20,7 +21,7 @@ router.get('/csv', (req, res) => {
       return s.includes(',') || s.includes('"') || s.includes('\n')
         ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size]
+    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size, e.passes_bumps, e.under_trenches]
       .map(esc).join(',');
   });
 
@@ -104,9 +105,15 @@ router.get('/html', (req, res) => {
           const color = roleColors[r] || '#999';
           return `<span class="role-badge" style="background:${color}">${r}</span>`;
         }).join(' ');
+        const capBadges = [];
+        if (e.passes_bumps === 'yes') capBadges.push('<span style="color:#4caf50;">🚧✓</span>');
+        else if (e.passes_bumps === 'no') capBadges.push('<span style="color:#c62828;">🚧✗</span>');
+        if (e.under_trenches === 'yes') capBadges.push('<span style="color:#4caf50;">🕳️✓</span>');
+        else if (e.under_trenches === 'no') capBadges.push('<span style="color:#c62828;">🕳️✗</span>');
         html += `<div class="entry">
           ${badges}
           <strong>${e.scout_name || 'Unknown'}</strong> — ${e.notes || 'No notes'}
+          ${capBadges.length ? ' ' + capBadges.join(' ') : ''}
           <span style="color:#999; font-size:12px;">(${e.created_at})</span>
         </div>`;
       }

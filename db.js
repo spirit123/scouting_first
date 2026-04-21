@@ -18,15 +18,17 @@ CREATE TABLE IF NOT EXISTS teams (
 );
 
 CREATE TABLE IF NOT EXISTS entries (
-    uuid        TEXT PRIMARY KEY,
-    team_number INTEGER NOT NULL,
-    role        TEXT,
-    filename    TEXT,
-    scout_name  TEXT,
-    notes       TEXT,
-    created_at  TEXT NOT NULL,
-    synced_at   TEXT NOT NULL DEFAULT (datetime('now')),
-    file_size   INTEGER,
+    uuid            TEXT PRIMARY KEY,
+    team_number     INTEGER NOT NULL,
+    role            TEXT,
+    filename        TEXT,
+    scout_name      TEXT,
+    notes           TEXT,
+    created_at      TEXT NOT NULL,
+    synced_at       TEXT NOT NULL DEFAULT (datetime('now')),
+    file_size       INTEGER,
+    passes_bumps    TEXT,
+    under_trenches  TEXT,
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
@@ -95,8 +97,19 @@ async function init() {
   }
 
   db.run(SCHEMA);
+  migrate();
   persist();
   return db;
+}
+
+function migrate() {
+  const cols = all("PRAGMA table_info(entries)").map(r => r.name);
+  if (!cols.includes('passes_bumps')) {
+    db.run('ALTER TABLE entries ADD COLUMN passes_bumps TEXT');
+  }
+  if (!cols.includes('under_trenches')) {
+    db.run('ALTER TABLE entries ADD COLUMN under_trenches TEXT');
+  }
 }
 
 function run(sql, params = []) {

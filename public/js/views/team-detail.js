@@ -114,6 +114,22 @@ const TeamDetailView = {
     const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
     let html = '';
 
+    // Capability summary across all entries
+    const cap = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0 };
+    const allForCap = [...localUnsynced, ...serverEntries];
+    for (const e of allForCap) {
+      const pb = e.passesBumps ?? e.passes_bumps;
+      const ut = e.underTrenches ?? e.under_trenches;
+      if (pb === 'yes') cap.bumpsYes++; else if (pb === 'no') cap.bumpsNo++;
+      if (ut === 'yes') cap.trenchesYes++; else if (ut === 'no') cap.trenchesNo++;
+    }
+    const capParts = [];
+    if (cap.bumpsYes || cap.bumpsNo) capParts.push(`🚧 Bumps: ${cap.bumpsYes}✓ / ${cap.bumpsNo}✗`);
+    if (cap.trenchesYes || cap.trenchesNo) capParts.push(`🕳️ Trenches: ${cap.trenchesYes}✓ / ${cap.trenchesNo}✗`);
+    if (capParts.length > 0) {
+      html += `<div class="card" style="padding:8px; font-size:13px; color:var(--text-secondary);">${capParts.join(' · ')}</div>`;
+    }
+
     // Local unsynced entries
     if (localUnsynced.length > 0) {
       html += `<div class="section-header"><span class="section-title">Pending Upload (${localUnsynced.length})</span></div>`;
@@ -166,6 +182,8 @@ const TeamDetailView = {
     const notes = e.notes || '';
     const time = isLocal ? e.createdAt : e.created_at;
     const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
+    const pb = e.passesBumps ?? e.passes_bumps;
+    const ut = e.underTrenches ?? e.under_trenches;
 
     const roleHtml = roles.length === 0
       ? `<span style="color:#999; font-weight:600;">📋 no role</span>`
@@ -175,11 +193,18 @@ const TeamDetailView = {
           return `<span style="font-weight:600; color:${c};">${ic} ${UI.esc(r)}</span>`;
         }).join(' ');
 
+    const capBadges = [];
+    if (pb === 'yes') capBadges.push('<span title="Passes bumps" style="color:var(--success); font-size:12px;">🚧✓</span>');
+    else if (pb === 'no') capBadges.push('<span title="No bumps" style="color:var(--error); font-size:12px;">🚧✗</span>');
+    if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success); font-size:12px;">🕳️✓</span>');
+    else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error); font-size:12px;">🕳️✗</span>');
+
     return `<div class="card" style="padding:10px; border-left: 4px solid ${borderColor};">
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
         <div style="flex:1; min-width:0;">
           ${roleHtml}
           <span style="color:var(--text-secondary);"> · ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
+          ${capBadges.length ? ' ' + capBadges.join(' ') : ''}
           ${hasPhoto ? ' 📷' : ''}
         </div>
       </div>

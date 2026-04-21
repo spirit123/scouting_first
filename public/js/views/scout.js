@@ -9,6 +9,8 @@ function parseRoles(value) {
 const ScoutView = {
   _selectedTeam: null,
   _selectedRoles: [],
+  _passesBumps: null,    // 'yes' | 'no' | null
+  _underTrenches: null,  // 'yes' | 'no' | null
   _photoBlob: null,
   _photoURL: null,
   _assignments: [],
@@ -61,9 +63,30 @@ const ScoutView = {
           </div>
         </div>
 
-        <!-- Step 3: Notes -->
+        <!-- Step 3: Capabilities -->
         <div class="form-group">
-          <label>3. Notes (optional)</label>
+          <label>3. Capabilities (optional)</label>
+          <div class="capability-row">
+            <div class="capability-label">Passes over bumps</div>
+            <div class="tri-toggle" data-field="passesBumps">
+              <button class="tri-btn" data-value="yes">✓ Yes</button>
+              <button class="tri-btn" data-value="no">✗ No</button>
+              <button class="tri-btn active" data-value="">? Unknown</button>
+            </div>
+          </div>
+          <div class="capability-row">
+            <div class="capability-label">Fits under trenches</div>
+            <div class="tri-toggle" data-field="underTrenches">
+              <button class="tri-btn" data-value="yes">✓ Yes</button>
+              <button class="tri-btn" data-value="no">✗ No</button>
+              <button class="tri-btn active" data-value="">? Unknown</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Step 4: Notes -->
+        <div class="form-group">
+          <label>4. Notes (optional)</label>
           <textarea id="entry-notes" placeholder="Robot features, strategy observations..."></textarea>
         </div>
 
@@ -121,6 +144,20 @@ const ScoutView = {
           this._selectedRoles.splice(idx, 1);
         }
         this._updateSaveButton();
+      });
+    });
+
+    // Capability tri-toggles (yes / no / unknown)
+    UI.$$('.tri-toggle').forEach(group => {
+      const field = group.dataset.field;
+      group.querySelectorAll('.tri-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.tri-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const value = btn.dataset.value || null;
+          if (field === 'passesBumps') this._passesBumps = value;
+          else if (field === 'underTrenches') this._underTrenches = value;
+        });
       });
     });
 
@@ -276,13 +313,22 @@ const ScoutView = {
     if (latest) {
       const roles = parseRoles(latest.role);
       const notes = latest.notes || '';
-      UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes);
+      const passesBumps = latest.passesBumps ?? latest.passes_bumps ?? null;
+      const underTrenches = latest.underTrenches ?? latest.under_trenches ?? null;
+      UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes
+        + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches);
 
       // Set roles
       this._selectedRoles = roles.slice();
       UI.$$('.role-btn').forEach(b => {
         b.classList.toggle('active', roles.includes(b.dataset.role));
       });
+
+      // Set capabilities
+      this._passesBumps = passesBumps;
+      this._underTrenches = underTrenches;
+      this._setTriToggle('passesBumps', passesBumps);
+      this._setTriToggle('underTrenches', underTrenches);
 
       // Set notes
       UI.$('#entry-notes').value = notes;
@@ -291,6 +337,10 @@ const ScoutView = {
       // No existing data — reset form
       this._selectedRoles = [];
       UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
+      this._passesBumps = null;
+      this._underTrenches = null;
+      this._setTriToggle('passesBumps', null);
+      this._setTriToggle('underTrenches', null);
       UI.$('#entry-notes').value = '';
     }
 
@@ -342,6 +392,25 @@ const ScoutView = {
       html += `</div>`;
     }
 
+    // Capability aggregate across entries
+    const capAgg = { bumpsYes: 0, bumpsNo: 0, trenchesYes: 0, trenchesNo: 0 };
+    for (const e of allEntries) {
+      const pb = e.passesBumps ?? e.passes_bumps;
+      const ut = e.underTrenches ?? e.under_trenches;
+      if (pb === 'yes') capAgg.bumpsYes++;
+      else if (pb === 'no') capAgg.bumpsNo++;
+      if (ut === 'yes') capAgg.trenchesYes++;
+      else if (ut === 'no') capAgg.trenchesNo++;
+    }
+    const capLine = [];
+    if (capAgg.bumpsYes || capAgg.bumpsNo)
+      capLine.push(`Bumps: ${capAgg.bumpsYes}✓ / ${capAgg.bumpsNo}✗`);
+    if (capAgg.trenchesYes || capAgg.trenchesNo)
+      capLine.push(`Trenches: ${capAgg.trenchesYes}✓ / ${capAgg.trenchesNo}✗`);
+    if (capLine.length > 0) {
+      html += `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${capLine.join(' · ')}</div>`;
+    }
+
     // Individual entries
     for (const e of allEntries) {
       const isLocal = !!e.createdAt; // local entries use camelCase
@@ -351,16 +420,25 @@ const ScoutView = {
       const time = isLocal ? e.createdAt : e.created_at;
       const synced = isLocal ? e.synced : true;
       const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
+      const pb = e.passesBumps ?? e.passes_bumps;
+      const ut = e.underTrenches ?? e.under_trenches;
 
       const roleHtml = roles.map(r => {
         const color = roleColors[r] || '#999';
         return `<span style="color:${color}; font-weight:600;">${roleIcons[r] || ''} ${r}</span>`;
       }).join(' ');
 
+      const capBadges = [];
+      if (pb === 'yes') capBadges.push('<span title="Passes bumps" style="color:var(--success);">🚧✓</span>');
+      else if (pb === 'no') capBadges.push('<span title="No bumps" style="color:var(--error);">🚧✗</span>');
+      if (ut === 'yes') capBadges.push('<span title="Under trenches" style="color:var(--success);">🕳️✓</span>');
+      else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error);">🕳️✗</span>');
+
       html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
           ${roleHtml}
           <span style="color:var(--text-secondary);">· ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
+          ${capBadges.join(' ')}
           ${hasPhoto ? '<span title="Has photo">📷</span>' : ''}
           ${!synced ? '<span style="color:var(--warning);" title="Not synced">⏳</span>' : ''}
         </div>
@@ -396,6 +474,15 @@ const ScoutView = {
     if (preview) preview.style.display = 'none';
   },
 
+  _setTriToggle(field, value) {
+    const group = document.querySelector(`.tri-toggle[data-field="${field}"]`);
+    if (!group) return;
+    group.querySelectorAll('.tri-btn').forEach(b => {
+      const btnValue = b.dataset.value || null;
+      b.classList.toggle('active', btnValue === (value || null));
+    });
+  },
+
   _updateSaveButton() {
     const ready = !!(this._selectedTeam && this._selectedRoles.length > 0);
     UI.$('#btn-save').disabled = !ready;
@@ -415,6 +502,8 @@ const ScoutView = {
       scoutName,
       notes: UI.$('#entry-notes').value.trim(),
       createdAt: new Date().toISOString(),
+      passesBumps: this._passesBumps || null,
+      underTrenches: this._underTrenches || null,
       imageBlob: this._photoBlob || null,
       synced: false,
       syncAttempts: 0,
