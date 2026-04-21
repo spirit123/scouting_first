@@ -40,6 +40,10 @@ const QueueView = {
       const thumbURL = e.imageBlob ? Camera.createPreviewURL(e.imageBlob) : '';
       const team = Teams.get(e.teamNumber);
       const teamLabel = team ? `#${team.teamNumber} — ${team.teamName}` : `#${e.teamNumber}`;
+      const roles = (e.role ? String(e.role).split(',').map(s => s.trim()).filter(Boolean) : []);
+      const rolesHtml = roles.map(r =>
+        `<span style="color:${roleColors[r] || 'inherit'}; font-weight:600;">${UI.esc(r)}</span>`
+      ).join(' + ');
       return `
         <div class="queue-item" data-uuid="${UI.esc(e.uuid)}">
           ${thumbURL
@@ -48,7 +52,7 @@ const QueueView = {
           <div class="queue-item-info">
             <div class="team">${UI.esc(teamLabel)}</div>
             <div class="meta">
-              <span style="color:${roleColors[e.role] || 'inherit'}; font-weight:600;">${UI.esc(e.role || '')}</span>
+              ${rolesHtml}
               · ${UI.esc(e.scoutName)} · ${UI.formatTime(e.createdAt)}
             </div>
             ${e.notes ? `<div class="meta">${UI.esc(e.notes)}</div>` : ''}

@@ -1,7 +1,14 @@
 // === Scout View ===
+// Role is stored as a comma-separated string (e.g. "scorer,feeder") so one entry can have multiple roles.
+function parseRoles(value) {
+  if (!value) return [];
+  if (Array.isArray(value)) return value.filter(Boolean);
+  return String(value).split(',').map(s => s.trim()).filter(Boolean);
+}
+
 const ScoutView = {
   _selectedTeam: null,
-  _selectedRole: null,
+  _selectedRoles: [],
   _photoBlob: null,
   _photoURL: null,
   _assignments: [],
@@ -61,7 +68,7 @@ const ScoutView = {
         </div>
 
         <button id="btn-save" class="btn btn-success" disabled>Save Entry</button>
-        <div id="save-hint" class="text-center mt-8 text-secondary" style="font-size:12px;">Select a team and role to save</div>
+        <div id="save-hint" class="text-center mt-8 text-secondary" style="font-size:12px;">Select a team and at least one role to save</div>
       </div>
     `;
 
@@ -102,12 +109,17 @@ const ScoutView = {
       }
     });
 
-    // Role selector
+    // Role selector (multi-select)
     UI.$$('.role-btn').forEach(btn => {
       btn.addEventListener('click', () => {
-        UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this._selectedRole = btn.dataset.role;
+        btn.classList.toggle('active');
+        const role = btn.dataset.role;
+        const idx = this._selectedRoles.indexOf(role);
+        if (btn.classList.contains('active') && idx === -1) {
+          this._selectedRoles.push(role);
+        } else if (!btn.classList.contains('active') && idx !== -1) {
+          this._selectedRoles.splice(idx, 1);
+        }
         this._updateSaveButton();
       });
     });
@@ -262,14 +274,14 @@ const ScoutView = {
     const latest = this._getLatestEntry(allEntries);
     UI.log('[Scout] Latest entry:', latest);
     if (latest) {
-      const role = latest.role;
+      const roles = parseRoles(latest.role);
       const notes = latest.notes || '';
-      UI.log('[Scout] Pre-filling: role=' + role + ', notes=' + notes);
+      UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes);
 
-      // Set role
-      this._selectedRole = role;
+      // Set roles
+      this._selectedRoles = roles.slice();
       UI.$$('.role-btn').forEach(b => {
-        b.classList.toggle('active', b.dataset.role === role);
+        b.classList.toggle('active', roles.includes(b.dataset.role));
       });
 
       // Set notes
@@ -277,7 +289,7 @@ const ScoutView = {
     } else {
       UI.log('[Scout] No entries found, resetting form');
       // No existing data — reset form
-      this._selectedRole = null;
+      this._selectedRoles = [];
       UI.$$('.role-btn').forEach(b => b.classList.remove('active'));
       UI.$('#entry-notes').value = '';
     }
@@ -307,11 +319,12 @@ const ScoutView = {
     const roleColors = { scorer: '#4caf50', feeder: '#2196f3', defender: '#ff9800' };
     const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
 
-    // Summarize roles
-    const roles = allEntries.map(e => e.role || (e.role)).filter(Boolean);
+    // Summarize roles (each entry may tag multiple)
     const roleCounts = {};
-    for (const r of roles) {
-      roleCounts[r] = (roleCounts[r] || 0) + 1;
+    for (const e of allEntries) {
+      for (const r of parseRoles(e.role)) {
+        roleCounts[r] = (roleCounts[r] || 0) + 1;
+      }
     }
 
     let html = `<div class="existing-data-panel">`;
@@ -332,17 +345,21 @@ const ScoutView = {
     // Individual entries
     for (const e of allEntries) {
       const isLocal = !!e.createdAt; // local entries use camelCase
-      const role = e.role;
+      const roles = parseRoles(e.role);
       const scout = (isLocal ? e.scoutName : e.scout_name) || 'Unknown';
       const notes = e.notes || '';
       const time = isLocal ? e.createdAt : e.created_at;
       const synced = isLocal ? e.synced : true;
       const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
-      const color = roleColors[role] || '#999';
+
+      const roleHtml = roles.map(r => {
+        const color = roleColors[r] || '#999';
+        return `<span style="color:${color}; font-weight:600;">${roleIcons[r] || ''} ${r}</span>`;
+      }).join(' ');
 
       html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
-        <div style="display:flex; align-items:center; gap:6px;">
-          ${role ? `<span style="color:${color}; font-weight:600;">${roleIcons[role] || ''} ${role}</span>` : ''}
+        <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+          ${roleHtml}
           <span style="color:var(--text-secondary);">· ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
           ${hasPhoto ? '<span title="Has photo">📷</span>' : ''}
           ${!synced ? '<span style="color:var(--warning);" title="Not synced">⏳</span>' : ''}
@@ -380,20 +397,21 @@ const ScoutView = {
   },
 
   _updateSaveButton() {
-    const ready = !!(this._selectedTeam && this._selectedRole);
+    const ready = !!(this._selectedTeam && this._selectedRoles.length > 0);
     UI.$('#btn-save').disabled = !ready;
     const hint = UI.$('#save-hint');
     if (hint) hint.classList.toggle('hidden', ready);
   },
 
   async _save() {
-    if (!this._selectedTeam || !this._selectedRole) return;
+    if (!this._selectedTeam || this._selectedRoles.length === 0) return;
 
     const scoutName = localStorage.getItem('scoutName') || 'Unknown';
+    const roleString = this._selectedRoles.join(',');
     const entry = {
       uuid: UI.uuid(),
       teamNumber: this._selectedTeam.teamNumber,
-      role: this._selectedRole,
+      role: roleString,
       scoutName,
       notes: UI.$('#entry-notes').value.trim(),
       createdAt: new Date().toISOString(),
@@ -404,7 +422,7 @@ const ScoutView = {
 
     try {
       await DB.saveEntry(entry);
-      UI.toast(`Saved entry for Team #${entry.teamNumber} (${entry.role})`, 'success');
+      UI.toast(`Saved entry for Team #${entry.teamNumber} (${roleString})`, 'success');
 
       // Clear photo only, keep team selected
       this._removePhoto();

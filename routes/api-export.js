@@ -99,9 +99,13 @@ router.get('/html', (req, res) => {
 
       // Show entries
       for (const e of teamEntries) {
-        const color = roleColors[e.role] || '#999';
+        const roles = e.role ? String(e.role).split(',').map(s => s.trim()).filter(Boolean) : [];
+        const badges = roles.map(r => {
+          const color = roleColors[r] || '#999';
+          return `<span class="role-badge" style="background:${color}">${r}</span>`;
+        }).join(' ');
         html += `<div class="entry">
-          ${e.role ? `<span class="role-badge" style="background:${color}">${e.role}</span>` : ''}
+          ${badges}
           <strong>${e.scout_name || 'Unknown'}</strong> — ${e.notes || 'No notes'}
           <span style="color:#999; font-size:12px;">(${e.created_at})</span>
         </div>`;

@@ -160,19 +160,25 @@ const TeamDetailView = {
   },
 
   _renderEntry(e, { roleColors, roleIcons, isLocal }) {
-    const role = e.role;
-    const color = roleColors[role] || '#999';
-    const icon = roleIcons[role] || '📋';
+    const roles = (e.role ? String(e.role).split(',').map(s => s.trim()).filter(Boolean) : []);
+    const borderColor = roles.length > 0 ? (roleColors[roles[0]] || '#999') : '#999';
     const scout = (isLocal ? e.scoutName : e.scout_name) || 'Unknown';
     const notes = e.notes || '';
     const time = isLocal ? e.createdAt : e.created_at;
     const hasPhoto = isLocal ? !!e.imageBlob : !!e.has_photo;
 
-    return `<div class="card" style="padding:10px; border-left: 4px solid ${color};">
-      <div style="display:flex; align-items:center; gap:8px;">
-        <span style="font-size:18px;">${icon}</span>
-        <div style="flex:1;">
-          <span style="font-weight:600; color:${color};">${UI.esc(role || 'no role')}</span>
+    const roleHtml = roles.length === 0
+      ? `<span style="color:#999; font-weight:600;">📋 no role</span>`
+      : roles.map(r => {
+          const c = roleColors[r] || '#999';
+          const ic = roleIcons[r] || '📋';
+          return `<span style="font-weight:600; color:${c};">${ic} ${UI.esc(r)}</span>`;
+        }).join(' ');
+
+    return `<div class="card" style="padding:10px; border-left: 4px solid ${borderColor};">
+      <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
+        <div style="flex:1; min-width:0;">
+          ${roleHtml}
           <span style="color:var(--text-secondary);"> · ${UI.esc(scout)} · ${UI.formatTime(time)}</span>
           ${hasPhoto ? ' 📷' : ''}
         </div>

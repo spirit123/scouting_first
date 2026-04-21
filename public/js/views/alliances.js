@@ -82,13 +82,22 @@ const AlliancesView = {
   async _loadRoles() {
     this._roleMap = {};
 
+    const splitRoles = (val) =>
+      val ? String(val).split(',').map(s => s.trim()).filter(Boolean) : [];
+
+    const addRoles = (teamNumber, roles) => {
+      if (roles.length === 0) return;
+      if (!this._roleMap[teamNumber]) this._roleMap[teamNumber] = { scorer: 0, feeder: 0, defender: 0 };
+      for (const r of roles) {
+        this._roleMap[teamNumber][r] = (this._roleMap[teamNumber][r] || 0) + 1;
+      }
+    };
+
     // Load from local IndexedDB
     try {
       const localEntries = await DB.getAllEntries();
       for (const e of localEntries) {
-        if (!e.role) continue;
-        if (!this._roleMap[e.teamNumber]) this._roleMap[e.teamNumber] = { scorer: 0, feeder: 0, defender: 0 };
-        this._roleMap[e.teamNumber][e.role] = (this._roleMap[e.teamNumber][e.role] || 0) + 1;
+        addRoles(e.teamNumber, splitRoles(e.role));
       }
     } catch (e) {}
 
@@ -98,10 +107,7 @@ const AlliancesView = {
       if (res.ok) {
         const entries = await res.json();
         for (const e of entries) {
-          if (!e.role) continue;
-          const num = e.team_number;
-          if (!this._roleMap[num]) this._roleMap[num] = { scorer: 0, feeder: 0, defender: 0 };
-          this._roleMap[num][e.role] = (this._roleMap[num][e.role] || 0) + 1;
+          addRoles(e.team_number, splitRoles(e.role));
         }
       }
     } catch (e) {}
