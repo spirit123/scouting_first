@@ -115,11 +115,15 @@ const TeamDetailView = {
     let html = '';
 
     // Capability summary across all entries
+    const splitCsv = (val) => val ? String(val).split(',').map(s => s.trim()).filter(Boolean) : [];
     const cap = {
       bumpsYes: 0, bumpsNo: 0,
       trenchesYes: 0, trenchesNo: 0,
       climb: { L1: 0, L2: 0, L3: 0 },
       drive: { tank: 0, swerve: 0, mecanum: 0, other: 0 },
+      autoPos: { left: 0, center: 0, right: 0 },
+      autoPerf: { none: 0, minimal: 0, reliable: 0, strong: 0 },
+      autoAct: { leaves_zone: 0, scores_fuel: 0, climbs_tower: 0, crosses_obstacle: 0 },
     };
     const allForCap = [...localUnsynced, ...serverEntries];
     for (const e of allForCap) {
@@ -127,10 +131,16 @@ const TeamDetailView = {
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
       const dt = e.drivetrain;
+      const ap = e.autoStartPosition ?? e.auto_start_position;
+      const af = e.autoPerformance ?? e.auto_performance;
+      const aa = splitCsv(e.autoActions ?? e.auto_actions);
       if (pb === 'yes') cap.bumpsYes++; else if (pb === 'no') cap.bumpsNo++;
       if (ut === 'yes') cap.trenchesYes++; else if (ut === 'no') cap.trenchesNo++;
       if (cl === 'L1' || cl === 'L2' || cl === 'L3') cap.climb[cl]++;
       if (dt && cap.drive[dt] !== undefined) cap.drive[dt]++;
+      if (ap && cap.autoPos[ap] !== undefined) cap.autoPos[ap]++;
+      if (af && cap.autoPerf[af] !== undefined) cap.autoPerf[af]++;
+      for (const a of aa) if (cap.autoAct[a] !== undefined) cap.autoAct[a]++;
     }
     const capParts = [];
     if (cap.bumpsYes || cap.bumpsNo) capParts.push(`🚧 Bumps: ${cap.bumpsYes}✓ / ${cap.bumpsNo}✗`);
@@ -145,6 +155,18 @@ const TeamDetailView = {
       if (cap.drive[dt]) driveParts.push(`${dt}×${cap.drive[dt]}`);
     }
     if (driveParts.length) capParts.push(`⚙️ Drive: ${driveParts.join(', ')}`);
+    const posParts = [];
+    for (const p of ['left', 'center', 'right']) if (cap.autoPos[p]) posParts.push(`${p}×${cap.autoPos[p]}`);
+    if (posParts.length) capParts.push(`🤖 Auto start: ${posParts.join(', ')}`);
+    const perfParts = [];
+    for (const p of ['none', 'minimal', 'reliable', 'strong']) if (cap.autoPerf[p]) perfParts.push(`${p}×${cap.autoPerf[p]}`);
+    if (perfParts.length) capParts.push(`▶️ Auto: ${perfParts.join(', ')}`);
+    const actLabel = { leaves_zone: 'leaves', scores_fuel: 'fuel', climbs_tower: 'tower', crosses_obstacle: 'obstacle' };
+    const actParts = [];
+    for (const a of ['leaves_zone', 'scores_fuel', 'climbs_tower', 'crosses_obstacle']) {
+      if (cap.autoAct[a]) actParts.push(`${actLabel[a]}×${cap.autoAct[a]}`);
+    }
+    if (actParts.length) capParts.push(`🎯 Auto acts: ${actParts.join(', ')}`);
     if (capParts.length > 0) {
       html += `<div class="card" style="padding:8px; font-size:13px; color:var(--text-secondary);">${capParts.join(' · ')}</div>`;
     }
@@ -205,6 +227,11 @@ const TeamDetailView = {
     const ut = e.underTrenches ?? e.under_trenches;
     const cl = e.climbLevel ?? e.climb_level;
     const dt = e.drivetrain;
+    const ap = e.autoStartPosition ?? e.auto_start_position;
+    const af = e.autoPerformance ?? e.auto_performance;
+    const aaRaw = e.autoActions ?? e.auto_actions;
+    const aa = aaRaw ? String(aaRaw).split(',').map(s => s.trim()).filter(Boolean) : [];
+    const an = e.autoNotes ?? e.auto_notes;
 
     const roleHtml = roles.length === 0
       ? `<span style="color:#999; font-weight:600;">📋 no role</span>`
@@ -221,6 +248,10 @@ const TeamDetailView = {
     else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error); font-size:12px;">🕳️✗</span>');
     if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600; font-size:12px;">🧗${cl}</span>`);
     if (dt) capBadges.push(`<span title="Drivetrain: ${dt}" style="color:var(--text-secondary); font-weight:600; font-size:12px;">⚙️${UI.esc(dt)}</span>`);
+    if (ap) capBadges.push(`<span title="Auto start: ${ap}" style="color:var(--text-secondary); font-weight:600; font-size:12px;">🤖${ap[0].toUpperCase()}</span>`);
+    if (af) capBadges.push(`<span title="Auto performance: ${af}" style="color:var(--text-secondary); font-weight:600; font-size:12px;">▶️${UI.esc(af)}</span>`);
+    const actLabel = { leaves_zone: 'leaves', scores_fuel: 'fuel', climbs_tower: 'tower', crosses_obstacle: 'obstacle' };
+    for (const a of aa) if (actLabel[a]) capBadges.push(`<span title="Auto action" style="color:var(--accent); font-size:12px;">${actLabel[a]}</span>`);
 
     return `<div class="card" style="padding:10px; border-left: 4px solid ${borderColor};">
       <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap;">
@@ -231,6 +262,7 @@ const TeamDetailView = {
           ${hasPhoto ? ' 📷' : ''}
         </div>
       </div>
+      ${an ? `<div style="font-size:13px; margin-top:4px; font-style:italic; color:var(--text-secondary);">Auto: ${UI.esc(an)}</div>` : ''}
       ${notes ? `<div style="font-size:13px; margin-top:4px;">${UI.esc(notes)}</div>` : ''}
     </div>`;
   },

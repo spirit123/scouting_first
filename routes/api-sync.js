@@ -14,9 +14,13 @@ const upload = multer({
 // POST /api/sync — bulk upload from scout
 // Expects multipart form with:
 //   - metadata: JSON string array of { uuid, teamNumber, role, scoutName, notes, createdAt,
-//                                       passesBumps, underTrenches, climbLevel, drivetrain }
+//                                       passesBumps, underTrenches, climbLevel, drivetrain,
+//                                       autoStartPosition, autoPerformance, autoActions, autoNotes }
 //     passesBumps/underTrenches: 'yes'|'no'|null ; climbLevel: 'L1'|'L2'|'L3'|null
 //     drivetrain: 'tank'|'swerve'|'mecanum'|'other'|null
+//     autoStartPosition: 'left'|'center'|'right'|null
+//     autoPerformance: 'none'|'minimal'|'reliable'|'strong'|null
+//     autoActions: CSV of leaves_zone|scores_fuel|climbs_tower|crosses_obstacle
 //   - photo_<uuid>: file for each entry that has a photo (optional)
 router.post('/', upload.any(), (req, res) => {
   const synced = [];
@@ -46,9 +50,20 @@ router.post('/', upload.any(), (req, res) => {
   const normClimb = (v) => (v === 'L1' || v === 'L2' || v === 'L3') ? v : null;
   const DRIVETRAINS = new Set(['tank', 'swerve', 'mecanum', 'other']);
   const normDrivetrain = (v) => DRIVETRAINS.has(v) ? v : null;
+  const POSITIONS = new Set(['left', 'center', 'right']);
+  const normPosition = (v) => POSITIONS.has(v) ? v : null;
+  const PERFORMANCES = new Set(['none', 'minimal', 'reliable', 'strong']);
+  const normPerformance = (v) => PERFORMANCES.has(v) ? v : null;
+  const ACTIONS = new Set(['leaves_zone', 'scores_fuel', 'climbs_tower', 'crosses_obstacle']);
+  const normActions = (v) => {
+    if (!v) return null;
+    const parts = String(v).split(',').map(s => s.trim()).filter(s => ACTIONS.has(s));
+    return parts.length ? parts.join(',') : null;
+  };
 
   for (const entry of metadata) {
-    const { uuid, teamNumber, role, scoutName, notes, createdAt, passesBumps, underTrenches, climbLevel, drivetrain } = entry;
+    const { uuid, teamNumber, role, scoutName, notes, createdAt, passesBumps, underTrenches, climbLevel, drivetrain,
+            autoStartPosition, autoPerformance, autoActions, autoNotes } = entry;
 
     if (!uuid || !teamNumber || !createdAt) {
       errors.push({ uuid, reason: 'Missing required fields (uuid, teamNumber, createdAt)' });
@@ -85,8 +100,8 @@ router.post('/', upload.any(), (req, res) => {
 
       // Insert into DB
       db.run(
-        'INSERT INTO entries (uuid, team_number, role, filename, scout_name, notes, created_at, file_size, passes_bumps, under_trenches, climb_level, drivetrain) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
-        [uuid, teamNumber, role || null, filename, scoutName || null, notes || null, createdAt, fileSize, normTri(passesBumps), normTri(underTrenches), normClimb(climbLevel), normDrivetrain(drivetrain)]
+        'INSERT INTO entries (uuid, team_number, role, filename, scout_name, notes, created_at, file_size, passes_bumps, under_trenches, climb_level, drivetrain, auto_start_position, auto_performance, auto_actions, auto_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+        [uuid, teamNumber, role || null, filename, scoutName || null, notes || null, createdAt, fileSize, normTri(passesBumps), normTri(underTrenches), normClimb(climbLevel), normDrivetrain(drivetrain), normPosition(autoStartPosition), normPerformance(autoPerformance), normActions(autoActions), autoNotes || null]
       );
 
       synced.push(uuid);

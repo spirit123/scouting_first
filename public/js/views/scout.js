@@ -13,6 +13,9 @@ const ScoutView = {
   _underTrenches: null,  // 'yes' | 'no' | null
   _climbLevel: null,     // 'L1' | 'L2' | 'L3' | null
   _drivetrain: null,     // 'tank' | 'swerve' | 'mecanum' | 'other' | null
+  _autoStartPosition: null,  // 'left' | 'center' | 'right' | null
+  _autoPerformance: null,    // 'none' | 'minimal' | 'reliable' | 'strong' | null
+  _autoActions: [],          // subset of ['leaves_zone','scores_fuel','climbs_tower','crosses_obstacle']
   _photoBlob: null,
   _photoURL: null,
   _assignments: [],
@@ -105,9 +108,40 @@ const ScoutView = {
           </div>
         </div>
 
-        <!-- Step 4: Notes -->
+        <!-- Step 4: Autonomous -->
         <div class="form-group">
-          <label>4. Notes (optional)</label>
+          <label>4. Autonomous (optional)</label>
+          <div class="capability-row">
+            <div class="capability-label">Start position</div>
+            <div class="position-toggle" data-field="autoStartPosition">
+              <button class="position-btn active" data-value="">? Unknown</button>
+              <button class="position-btn" data-value="left">Left</button>
+              <button class="position-btn" data-value="center">Center</button>
+              <button class="position-btn" data-value="right">Right</button>
+            </div>
+          </div>
+          <div class="capability-row">
+            <div class="capability-label">Performance</div>
+            <div class="perf-toggle" data-field="autoPerformance">
+              <button class="perf-btn active" data-value="">?</button>
+              <button class="perf-btn" data-value="none">None</button>
+              <button class="perf-btn" data-value="minimal">Minimal</button>
+              <button class="perf-btn" data-value="reliable">Reliable</button>
+              <button class="perf-btn" data-value="strong">Strong</button>
+            </div>
+          </div>
+          <div class="auto-actions">
+            <button class="action-chk" data-action="leaves_zone">Leaves start zone</button>
+            <button class="action-chk" data-action="scores_fuel">Scores FUEL</button>
+            <button class="action-chk" data-action="climbs_tower">Climbs Tower (L1)</button>
+            <button class="action-chk" data-action="crosses_obstacle">Crosses obstacle</button>
+          </div>
+          <textarea id="entry-auto-notes" placeholder="Auto routine notes (optional)..." style="margin-top:8px;"></textarea>
+        </div>
+
+        <!-- Step 5: Notes -->
+        <div class="form-group">
+          <label>5. Notes (optional)</label>
           <textarea id="entry-notes" placeholder="Robot features, strategy observations..."></textarea>
         </div>
 
@@ -201,6 +235,39 @@ const ScoutView = {
           btn.classList.add('active');
           this._drivetrain = btn.dataset.value || null;
         });
+      });
+    });
+
+    // Auto start position
+    UI.$$('.position-toggle').forEach(group => {
+      group.querySelectorAll('.position-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this._autoStartPosition = btn.dataset.value || null;
+        });
+      });
+    });
+
+    // Auto performance
+    UI.$$('.perf-toggle').forEach(group => {
+      group.querySelectorAll('.perf-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+          group.querySelectorAll('.perf-btn').forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          this._autoPerformance = btn.dataset.value || null;
+        });
+      });
+    });
+
+    // Auto actions (multi-select)
+    UI.$$('.action-chk').forEach(btn => {
+      btn.addEventListener('click', () => {
+        btn.classList.toggle('active');
+        const action = btn.dataset.action;
+        const idx = this._autoActions.indexOf(action);
+        if (btn.classList.contains('active') && idx === -1) this._autoActions.push(action);
+        else if (!btn.classList.contains('active') && idx !== -1) this._autoActions.splice(idx, 1);
       });
     });
 
@@ -360,9 +427,15 @@ const ScoutView = {
       const underTrenches = latest.underTrenches ?? latest.under_trenches ?? null;
       const climbLevel = latest.climbLevel ?? latest.climb_level ?? null;
       const drivetrain = latest.drivetrain ?? null;
+      const autoStartPosition = latest.autoStartPosition ?? latest.auto_start_position ?? null;
+      const autoPerformance = latest.autoPerformance ?? latest.auto_performance ?? null;
+      const autoActions = parseRoles(latest.autoActions ?? latest.auto_actions);
+      const autoNotes = latest.autoNotes ?? latest.auto_notes ?? '';
       UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes
         + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches
-        + ', climbLevel=' + climbLevel + ', drivetrain=' + drivetrain);
+        + ', climbLevel=' + climbLevel + ', drivetrain=' + drivetrain
+        + ', autoPos=' + autoStartPosition + ', autoPerf=' + autoPerformance
+        + ', autoActions=' + autoActions.join(','));
 
       // Set roles
       this._selectedRoles = roles.slice();
@@ -375,10 +448,17 @@ const ScoutView = {
       this._underTrenches = underTrenches;
       this._climbLevel = climbLevel;
       this._drivetrain = drivetrain;
+      this._autoStartPosition = autoStartPosition;
+      this._autoPerformance = autoPerformance;
+      this._autoActions = autoActions.slice();
       this._setTriToggle('passesBumps', passesBumps);
       this._setTriToggle('underTrenches', underTrenches);
       this._setClimbToggle(climbLevel);
       this._setDrivetrainToggle(drivetrain);
+      this._setGroupToggle('.position-toggle', '.position-btn', autoStartPosition);
+      this._setGroupToggle('.perf-toggle', '.perf-btn', autoPerformance);
+      this._setActionChecks(autoActions);
+      UI.$('#entry-auto-notes').value = autoNotes;
 
       // Set notes
       UI.$('#entry-notes').value = notes;
@@ -391,10 +471,17 @@ const ScoutView = {
       this._underTrenches = null;
       this._climbLevel = null;
       this._drivetrain = null;
+      this._autoStartPosition = null;
+      this._autoPerformance = null;
+      this._autoActions = [];
       this._setTriToggle('passesBumps', null);
       this._setTriToggle('underTrenches', null);
       this._setClimbToggle(null);
       this._setDrivetrainToggle(null);
+      this._setGroupToggle('.position-toggle', '.position-btn', null);
+      this._setGroupToggle('.perf-toggle', '.perf-btn', null);
+      this._setActionChecks([]);
+      UI.$('#entry-auto-notes').value = '';
       UI.$('#entry-notes').value = '';
     }
 
@@ -452,18 +539,27 @@ const ScoutView = {
       trenchesYes: 0, trenchesNo: 0,
       climb: { L1: 0, L2: 0, L3: 0 },
       drive: { tank: 0, swerve: 0, mecanum: 0, other: 0 },
+      autoPos: { left: 0, center: 0, right: 0 },
+      autoPerf: { none: 0, minimal: 0, reliable: 0, strong: 0 },
+      autoAct: { leaves_zone: 0, scores_fuel: 0, climbs_tower: 0, crosses_obstacle: 0 },
     };
     for (const e of allEntries) {
       const pb = e.passesBumps ?? e.passes_bumps;
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
       const dt = e.drivetrain;
+      const ap = e.autoStartPosition ?? e.auto_start_position;
+      const af = e.autoPerformance ?? e.auto_performance;
+      const aa = parseRoles(e.autoActions ?? e.auto_actions);
       if (pb === 'yes') capAgg.bumpsYes++;
       else if (pb === 'no') capAgg.bumpsNo++;
       if (ut === 'yes') capAgg.trenchesYes++;
       else if (ut === 'no') capAgg.trenchesNo++;
       if (cl === 'L1' || cl === 'L2' || cl === 'L3') capAgg.climb[cl]++;
       if (dt && capAgg.drive[dt] !== undefined) capAgg.drive[dt]++;
+      if (ap && capAgg.autoPos[ap] !== undefined) capAgg.autoPos[ap]++;
+      if (af && capAgg.autoPerf[af] !== undefined) capAgg.autoPerf[af]++;
+      for (const a of aa) if (capAgg.autoAct[a] !== undefined) capAgg.autoAct[a]++;
     }
     const capLine = [];
     if (capAgg.bumpsYes || capAgg.bumpsNo)
@@ -480,6 +576,18 @@ const ScoutView = {
       if (capAgg.drive[dt]) driveParts.push(`${dt}×${capAgg.drive[dt]}`);
     }
     if (driveParts.length) capLine.push(`Drive: ${driveParts.join(', ')}`);
+    const posParts = [];
+    for (const p of ['left', 'center', 'right']) if (capAgg.autoPos[p]) posParts.push(`${p}×${capAgg.autoPos[p]}`);
+    if (posParts.length) capLine.push(`Auto start: ${posParts.join(', ')}`);
+    const perfParts = [];
+    for (const p of ['none', 'minimal', 'reliable', 'strong']) if (capAgg.autoPerf[p]) perfParts.push(`${p}×${capAgg.autoPerf[p]}`);
+    if (perfParts.length) capLine.push(`Auto perf: ${perfParts.join(', ')}`);
+    const ACTION_LABEL = { leaves_zone: 'leaves', scores_fuel: 'fuel', climbs_tower: 'tower', crosses_obstacle: 'obstacle' };
+    const actParts = [];
+    for (const a of ['leaves_zone', 'scores_fuel', 'climbs_tower', 'crosses_obstacle']) {
+      if (capAgg.autoAct[a]) actParts.push(`${ACTION_LABEL[a]}×${capAgg.autoAct[a]}`);
+    }
+    if (actParts.length) capLine.push(`Auto acts: ${actParts.join(', ')}`);
     if (capLine.length > 0) {
       html += `<div style="font-size:12px; color:var(--text-secondary); margin-bottom:6px;">${capLine.join(' · ')}</div>`;
     }
@@ -497,6 +605,10 @@ const ScoutView = {
       const ut = e.underTrenches ?? e.under_trenches;
       const cl = e.climbLevel ?? e.climb_level;
       const dt = e.drivetrain;
+      const ap = e.autoStartPosition ?? e.auto_start_position;
+      const af = e.autoPerformance ?? e.auto_performance;
+      const aa = parseRoles(e.autoActions ?? e.auto_actions);
+      const an = e.autoNotes ?? e.auto_notes;
 
       const roleHtml = roles.map(r => {
         const color = roleColors[r] || '#999';
@@ -510,6 +622,10 @@ const ScoutView = {
       else if (ut === 'no') capBadges.push('<span title="No trenches" style="color:var(--error);">🕳️✗</span>');
       if (cl) capBadges.push(`<span title="Climb ${cl}" style="color:var(--accent); font-weight:600;">🧗${cl}</span>`);
       if (dt) capBadges.push(`<span title="Drivetrain: ${dt}" style="color:var(--text-secondary); font-weight:600;">⚙️${dt}</span>`);
+      if (ap) capBadges.push(`<span title="Auto start: ${ap}" style="color:var(--text-secondary); font-weight:600;">🤖${ap[0].toUpperCase()}</span>`);
+      if (af) capBadges.push(`<span title="Auto perf: ${af}" style="color:var(--text-secondary); font-weight:600;">▶️${af}</span>`);
+      const actionShort = { leaves_zone: 'leaves', scores_fuel: 'fuel', climbs_tower: 'tower', crosses_obstacle: 'obstacle' };
+      for (const a of aa) if (actionShort[a]) capBadges.push(`<span title="Auto action" style="color:var(--accent);">${actionShort[a]}</span>`);
 
       html += `<div style="padding:6px 0; border-bottom:1px solid var(--border); font-size:13px;">
         <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
@@ -519,6 +635,7 @@ const ScoutView = {
           ${hasPhoto ? '<span title="Has photo">📷</span>' : ''}
           ${!synced ? '<span style="color:var(--warning);" title="Not synced">⏳</span>' : ''}
         </div>
+        ${an ? `<div style="color:var(--text-secondary); margin-top:2px; font-style:italic;">Auto: ${UI.esc(an)}</div>` : ''}
         ${notes ? `<div style="color:var(--text-secondary); margin-top:2px;">${UI.esc(notes)}</div>` : ''}
       </div>`;
     }
@@ -578,6 +695,22 @@ const ScoutView = {
     });
   },
 
+  _setGroupToggle(groupSel, btnSel, value) {
+    const group = document.querySelector(groupSel);
+    if (!group) return;
+    group.querySelectorAll(btnSel).forEach(b => {
+      const btnValue = b.dataset.value || null;
+      b.classList.toggle('active', btnValue === (value || null));
+    });
+  },
+
+  _setActionChecks(actions) {
+    const set = new Set(actions || []);
+    document.querySelectorAll('.action-chk').forEach(b => {
+      b.classList.toggle('active', set.has(b.dataset.action));
+    });
+  },
+
   _updateSaveButton() {
     const ready = !!(this._selectedTeam && this._selectedRoles.length > 0);
     UI.$('#btn-save').disabled = !ready;
@@ -601,6 +734,10 @@ const ScoutView = {
       underTrenches: this._underTrenches || null,
       climbLevel: this._climbLevel || null,
       drivetrain: this._drivetrain || null,
+      autoStartPosition: this._autoStartPosition || null,
+      autoPerformance: this._autoPerformance || null,
+      autoActions: this._autoActions.length ? this._autoActions.join(',') : null,
+      autoNotes: UI.$('#entry-auto-notes').value.trim() || null,
       imageBlob: this._photoBlob || null,
       synced: false,
       syncAttempts: 0,

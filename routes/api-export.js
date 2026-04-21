@@ -7,13 +7,14 @@ router.get('/csv', (req, res) => {
   const entries = db.all(`
     SELECT e.uuid, e.team_number, t.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.file_size,
            e.passes_bumps, e.under_trenches, e.climb_level, e.drivetrain,
+           e.auto_start_position, e.auto_performance, e.auto_actions, e.auto_notes,
            CASE WHEN e.filename IS NOT NULL THEN 1 ELSE 0 END as has_photo
     FROM entries e
     LEFT JOIN teams t ON e.team_number = t.team_number
     ORDER BY e.team_number, e.created_at
   `);
 
-  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size,passes_bumps,under_trenches,climb_level,drivetrain';
+  const header = 'uuid,team_number,team_name,role,scout_name,notes,created_at,synced_at,has_photo,file_size,passes_bumps,under_trenches,climb_level,drivetrain,auto_start_position,auto_performance,auto_actions,auto_notes';
   const rows = entries.map(e => {
     const esc = (v) => {
       if (v == null) return '';
@@ -21,7 +22,7 @@ router.get('/csv', (req, res) => {
       return s.includes(',') || s.includes('"') || s.includes('\n')
         ? `"${s.replace(/"/g, '""')}"` : s;
     };
-    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size, e.passes_bumps, e.under_trenches, e.climb_level, e.drivetrain]
+    return [e.uuid, e.team_number, e.team_name, e.role, e.scout_name, e.notes, e.created_at, e.synced_at, e.has_photo, e.file_size, e.passes_bumps, e.under_trenches, e.climb_level, e.drivetrain, e.auto_start_position, e.auto_performance, e.auto_actions, e.auto_notes]
       .map(esc).join(',');
   });
 
@@ -114,10 +115,18 @@ router.get('/html', (req, res) => {
           capBadges.push(`<span style="color:#1976d2; font-weight:600;">🧗${e.climb_level}</span>`);
         if (e.drivetrain)
           capBadges.push(`<span style="color:#555; font-weight:600;">⚙️${e.drivetrain}</span>`);
+        if (e.auto_start_position)
+          capBadges.push(`<span style="color:#555;">🤖${e.auto_start_position[0].toUpperCase()}</span>`);
+        if (e.auto_performance)
+          capBadges.push(`<span style="color:#555;">▶️${e.auto_performance}</span>`);
+        const actLabel = { leaves_zone: 'leaves', scores_fuel: 'fuel', climbs_tower: 'tower', crosses_obstacle: 'obstacle' };
+        const aa = e.auto_actions ? String(e.auto_actions).split(',').map(s => s.trim()).filter(Boolean) : [];
+        for (const a of aa) if (actLabel[a]) capBadges.push(`<span style="color:#1976d2;">${actLabel[a]}</span>`);
         html += `<div class="entry">
           ${badges}
           <strong>${e.scout_name || 'Unknown'}</strong> — ${e.notes || 'No notes'}
           ${capBadges.length ? ' ' + capBadges.join(' ') : ''}
+          ${e.auto_notes ? `<div style="font-style:italic; color:#555; font-size:12px;">Auto: ${e.auto_notes}</div>` : ''}
           <span style="color:#999; font-size:12px;">(${e.created_at})</span>
         </div>`;
       }

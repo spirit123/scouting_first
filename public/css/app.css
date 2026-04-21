@@ -348,6 +348,56 @@ textarea { resize: vertical; min-height: 70px; }
 .drivetrain-btn.active[data-value="mecanum"] { background: #fff3e0; color: #f57c00; }
 .drivetrain-btn.active[data-value="other"]   { background: #f3e5f5; color: #7b1fa2; }
 
+/* === Auto: start position + performance + actions === */
+.position-toggle, .perf-toggle {
+  display: inline-flex;
+  flex-wrap: wrap;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.position-btn, .perf-btn {
+  padding: 8px 10px;
+  border: 0;
+  background: var(--card-bg);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: var(--text-secondary);
+  min-height: 40px;
+  border-right: 1px solid var(--border);
+}
+.position-btn:last-child, .perf-btn:last-child { border-right: 0; }
+.position-btn:active, .perf-btn:active { transform: scale(0.96); }
+.position-btn.active[data-value=""]       { background: var(--border); color: var(--text); }
+.position-btn.active[data-value="left"]   { background: #e3f2fd; color: #1976d2; }
+.position-btn.active[data-value="center"] { background: #f3e5f5; color: #7b1fa2; }
+.position-btn.active[data-value="right"]  { background: #fff3e0; color: #f57c00; }
+.perf-btn.active[data-value=""]         { background: var(--border); color: var(--text); }
+.perf-btn.active[data-value="none"]     { background: #ffebee; color: #c62828; }
+.perf-btn.active[data-value="minimal"]  { background: #fff8e1; color: #f57f17; }
+.perf-btn.active[data-value="reliable"] { background: #e3f2fd; color: #1976d2; }
+.perf-btn.active[data-value="strong"]   { background: #e8f5e9; color: #388e3c; }
+
+.auto-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 6px;
+}
+.action-chk {
+  padding: 6px 10px;
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  background: var(--card-bg);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+.action-chk:active { transform: scale(0.96); }
+.action-chk.active { background: #e8f5e9; color: var(--success); border-color: var(--success); }
+
 /* === Photo Grid === */
 .photo-grid {
   display: grid;

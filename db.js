@@ -31,6 +31,10 @@ CREATE TABLE IF NOT EXISTS entries (
     under_trenches  TEXT,
     climb_level     TEXT,
     drivetrain      TEXT,
+    auto_start_position TEXT,
+    auto_performance    TEXT,
+    auto_actions        TEXT,
+    auto_notes          TEXT,
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
@@ -117,6 +121,18 @@ function migrate() {
   }
   if (!cols.includes('drivetrain')) {
     db.run('ALTER TABLE entries ADD COLUMN drivetrain TEXT');
+  }
+  if (!cols.includes('auto_start_position')) {
+    db.run('ALTER TABLE entries ADD COLUMN auto_start_position TEXT');
+  }
+  if (!cols.includes('auto_performance')) {
+    db.run('ALTER TABLE entries ADD COLUMN auto_performance TEXT');
+  }
+  if (!cols.includes('auto_actions')) {
+    db.run('ALTER TABLE entries ADD COLUMN auto_actions TEXT');
+  }
+  if (!cols.includes('auto_notes')) {
+    db.run('ALTER TABLE entries ADD COLUMN auto_notes TEXT');
   }
 }
 

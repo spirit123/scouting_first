@@ -78,6 +78,10 @@ const Sync = {
       underTrenches: e.underTrenches || null,
       climbLevel: e.climbLevel || null,
       drivetrain: e.drivetrain || null,
+      autoStartPosition: e.autoStartPosition || null,
+      autoPerformance: e.autoPerformance || null,
+      autoActions: e.autoActions || null,
+      autoNotes: e.autoNotes || null,
     }));
 
     formData.append('metadata', JSON.stringify(metadata));
