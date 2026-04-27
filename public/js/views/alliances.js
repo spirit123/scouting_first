@@ -1,13 +1,15 @@
 // === Alliance Selection View ===
 const AlliancesView = {
   _alliances: [], // 8 alliances, each { captain, picks: [] }
-  _available: [],  // teams not yet picked
+  _available: [],  // teams not yet on any alliance
   _pickOrder: [],  // which alliance picks next
   _currentPick: 0,
   _round: 0,
   _roleMap: {},    // teamNumber -> { scorer, feeder, defender } counts
   _sortBy: 'composite',
   _filterRole: 'all',
+  _promotionLog: [], // FIFO of captain promotions caused by picks, for undo
+                     //   { vacatedAllianceIdx, oldCaptain, promotedTeam }
 
   async render(container) {
     // Load saved state and role data
@@ -131,6 +133,7 @@ const AlliancesView = {
         this._alliances = state.alliances;
         this._currentPick = state.currentPick;
         this._round = state.round;
+        this._promotionLog = state.promotionLog || [];
         this._rebuildAvailable();
         return;
       } catch (e) {}
@@ -143,6 +146,7 @@ const AlliancesView = {
       alliances: this._alliances,
       currentPick: this._currentPick,
       round: this._round,
+      promotionLog: this._promotionLog,
     }));
   },
 
@@ -167,6 +171,7 @@ const AlliancesView = {
 
     this._round = 1;
     this._currentPick = 0;
+    this._promotionLog = [];
     this._rebuildAvailable();
     this._saveState();
   },
@@ -195,12 +200,41 @@ const AlliancesView = {
     return this._alliances.every(a => a.picks.length >= 2);
   },
 
+  // Returns the alliance index whose captain is `teamNumber` and is currently
+  // pickable (no picks yet, not the picking alliance), or null.
+  _captainOfShiftableAlliance(teamNumber) {
+    const pickingIdx = this._getPickingAlliance();
+    for (let i = 0; i < this._alliances.length; i++) {
+      const a = this._alliances[i];
+      if (a.captain === teamNumber && a.picks.length === 0 && i !== pickingIdx) {
+        return i;
+      }
+    }
+    return null;
+  },
+
   _pickTeam(teamNumber) {
     const allianceIdx = this._getPickingAlliance();
     if (allianceIdx == null) return;
 
+    // If the picked team is currently a captain of a shiftable alliance,
+    // promote the next-best available team into that captain slot.
+    const vacatedIdx = this._captainOfShiftableAlliance(teamNumber);
+    let promotion = null;
+    if (vacatedIdx != null) {
+      const replacement = this._available[0]; // sorted by composite desc
+      if (!replacement) {
+        UI.toast('No team available to fill the vacated captain slot', 'error');
+        return;
+      }
+      const oldCaptain = this._alliances[vacatedIdx].captain;
+      this._alliances[vacatedIdx].captain = replacement.teamNumber;
+      promotion = { vacatedAllianceIdx: vacatedIdx, oldCaptain, promotedTeam: replacement.teamNumber };
+    }
+
     const alliance = this._alliances[allianceIdx];
     alliance.picks.push(teamNumber);
+    this._promotionLog.push(promotion); // null if no promotion happened
 
     // Advance pick
     this._currentPick++;
@@ -229,6 +263,12 @@ const AlliancesView = {
     const alliance = this._alliances[allianceIdx];
     if (alliance.picks.length > 0) {
       alliance.picks.pop();
+    }
+
+    // Reverse the promotion that was logged for this pick (if any).
+    const promotion = this._promotionLog.pop();
+    if (promotion) {
+      this._alliances[promotion.vacatedAllianceIdx].captain = promotion.oldCaptain;
     }
 
     this._rebuildAvailable();
@@ -420,7 +460,22 @@ const AlliancesView = {
     const list = UI.$('#available-list');
     const countEl = UI.$('#available-count');
 
-    let filtered = [...this._available];
+    // Pickable = teams not on any alliance + captains of shiftable alliances
+    // (other alliances with zero picks). Captains carry a `_captainOf` tag so
+    // we can render the badge and trigger the promotion confirm.
+    const pickingIdx = this._getPickingAlliance();
+    let pickable = [...this._available];
+    if (pickingIdx != null) {
+      for (let i = 0; i < this._alliances.length; i++) {
+        const a = this._alliances[i];
+        if (i !== pickingIdx && a.picks.length === 0) {
+          const captainTeam = Teams.get(a.captain);
+          if (captainTeam) pickable.push({ ...captainTeam, _captainOf: i });
+        }
+      }
+    }
+
+    let filtered = pickable;
 
     // Filter by role
     if (this._filterRole !== 'all') {
@@ -451,7 +506,7 @@ const AlliancesView = {
       }
     });
 
-    countEl.textContent = `${filtered.length}/${this._available.length} shown`;
+    countEl.textContent = `${filtered.length}/${pickable.length} shown`;
 
     if (filtered.length === 0) {
       list.innerHTML = '<div class="empty-state"><div class="message">No teams found</div></div>';
@@ -469,13 +524,20 @@ const AlliancesView = {
       const roleIcon = primaryRole ? roleIcons[primaryRole] : '';
       const roleColor = primaryRole ? roleColors[primaryRole] : '';
 
-      return `<div class="queue-item ${isPickActive ? 'pickable-team' : ''}" data-team="${t.teamNumber}" style="cursor:${isPickActive ? 'pointer' : 'default'}; ${t.favorite ? 'background:#fffbe6;' : ''}">
+      const captainOf = t._captainOf != null ? this._alliances[t._captainOf] : null;
+      const captainBadge = captainOf
+        ? `<span style="background:#fff3e0; color:#e65100; font-size:10px; font-weight:700; padding:2px 6px; border-radius:8px; margin-left:6px;" title="Currently captain of Alliance ${captainOf.number}">Cpt A${captainOf.number}</span>`
+        : '';
+      const rowBg = captainOf ? '#fff3e0' : (t.favorite ? '#fffbe6' : '');
+
+      return `<div class="queue-item ${isPickActive ? 'pickable-team' : ''}" data-team="${t.teamNumber}" style="cursor:${isPickActive ? 'pointer' : 'default'}; ${rowBg ? `background:${rowBg};` : ''}">
         <div style="width:40px; text-align:center; font-weight:700; font-size:16px; color:var(--accent); flex-shrink:0;">${t.teamNumber}</div>
         <div class="queue-item-info">
           <div class="team">
             ${t.favorite ? '<span style="color:#f5a623; margin-right:4px;" title="Favorite">★</span>' : ''}
             ${UI.esc(t.teamName)}
             ${primaryRole ? `<span style="color:${roleColor}; font-size:12px; margin-left:4px;" title="${primaryRole}">${roleIcon}</span>` : ''}
+            ${captainBadge}
           </div>
           <div class="meta">
             ${UI.esc([t.city, t.state].filter(Boolean).join(', '))}
@@ -499,7 +561,22 @@ const AlliancesView = {
           const alliance = this._alliances[allianceIdx];
           const pickLabel = this._round === 1 ? '1st pick' : '2nd pick';
 
-          if (confirm(`Alliance ${alliance.number} picks #${num} ${team ? team.teamName : ''} as ${pickLabel}?`)) {
+          // If the team is currently a captain of another alliance, spell out
+          // the promotion consequence in the confirm dialog.
+          const vacatedIdx = this._captainOfShiftableAlliance(num);
+          let prompt = `Alliance ${alliance.number} picks #${num} ${team ? team.teamName : ''} as ${pickLabel}?`;
+          if (vacatedIdx != null) {
+            const vacated = this._alliances[vacatedIdx];
+            const replacement = this._available[0];
+            if (!replacement) {
+              UI.toast('No team available to fill the vacated captain slot', 'error');
+              return;
+            }
+            const repTeam = Teams.get(replacement.teamNumber);
+            prompt = `Alliance ${alliance.number} picks #${num} ${team ? team.teamName : ''} as ${pickLabel}.\n\n#${num} is currently captain of Alliance ${vacated.number} — that seat will be re-filled with #${replacement.teamNumber} ${repTeam ? repTeam.teamName : ''}. Continue?`;
+          }
+
+          if (confirm(prompt)) {
             this._pickTeam(num);
           }
         });

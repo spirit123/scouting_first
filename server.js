@@ -1,7 +1,9 @@
 const express = require('express');
+const fs = require('fs');
 const path = require('path');
 const config = require('./config');
 const db = require('./db');
+const pkg = require('./package.json');
 
 const apiTeams = require('./routes/api-teams');
 const apiEntries = require('./routes/api-photos');
@@ -15,6 +17,17 @@ async function start() {
 
   const app = express();
   app.use(express.json());
+
+  // Serve sw.js dynamically with the package version baked in, so a version
+  // bump auto-invalidates every phone's cache. Must be registered before the
+  // static middleware so it wins precedence over the file on disk.
+  const swTemplate = fs.readFileSync(path.join(__dirname, 'public', 'sw.js'), 'utf-8');
+  const swBody = swTemplate.replace(/__VERSION__/g, pkg.version);
+  app.get('/sw.js', (req, res) => {
+    res.set('Content-Type', 'application/javascript');
+    res.set('Cache-Control', 'no-cache');
+    res.send(swBody);
+  });
 
   // Serve static PWA files
   app.use(express.static(path.join(__dirname, 'public')));

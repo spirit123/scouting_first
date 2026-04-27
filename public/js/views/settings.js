@@ -50,13 +50,46 @@ const SettingsView = {
         </label>
       </div>
 
-      <div class="card" style="text-align:center; color:var(--text-secondary); font-size:12px;">
-        FTC Scout v1.0.0
+      <div class="card" id="version-info" style="text-align:center; color:var(--text-secondary); font-size:12px;">
+        FTC Scout — loading version…
       </div>
     `;
 
     this._bindEvents();
     this._showStorageInfo();
+    this._showVersionInfo();
+  },
+
+  async _showVersionInfo() {
+    const el = UI.$('#version-info');
+    if (!el) return;
+
+    let serverVersion = null;
+    try {
+      const status = await Sync.checkConnection();
+      if (status.online && status.version) serverVersion = status.version;
+    } catch (e) {}
+
+    let cachedVersion = null;
+    try {
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        const match = keys.find(k => k.startsWith('ftc-scout-v'));
+        if (match) cachedVersion = match.replace(/^ftc-scout-v/, '');
+      }
+    } catch (e) {}
+
+    const parts = [];
+    parts.push(`FTC Scout v${serverVersion || '?'}`);
+    if (cachedVersion) {
+      const stale = serverVersion && cachedVersion !== serverVersion;
+      parts.push(stale
+        ? `<span style="color:var(--warning);">cached v${cachedVersion} — refresh to update</span>`
+        : `cached v${cachedVersion}`);
+    } else if (!serverVersion) {
+      parts.push('<span style="color:var(--text-secondary);">offline</span>');
+    }
+    el.innerHTML = parts.join(' · ');
   },
 
   _bindEvents() {

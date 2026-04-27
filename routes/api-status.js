@@ -1,6 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const db = require('../db');
+const pkg = require('../package.json');
 
 router.get('/', (req, res) => {
   const teamCount = db.get('SELECT COUNT(*) as count FROM teams');
@@ -10,6 +11,7 @@ router.get('/', (req, res) => {
 
   res.json({
     ok: true,
+    version: pkg.version,
     teamCount: teamCount ? teamCount.count : 0,
     entryCount: entryCount ? entryCount.count : 0,
     photoCount: photoCount ? photoCount.count : 0,

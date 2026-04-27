@@ -112,11 +112,13 @@ const App = {
 
   async _pollConnection() {
     const dot = UI.$('#connection-status');
+    const versionEl = UI.$('#header-version');
     const check = async () => {
       const status = await Sync.checkConnection();
       dot.className = `status-dot ${status.online ? 'online' : 'offline'}`;
       dot.title = status.online ? 'Connected to server' : 'Offline';
       dot.setAttribute('aria-label', status.online ? 'Connected' : 'Offline');
+      if (versionEl && status.version) versionEl.textContent = `v${status.version}`;
     };
 
     await check();
