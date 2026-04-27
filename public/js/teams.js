@@ -32,6 +32,7 @@ const Teams = {
           rankAtEvent: t.rank_at_event,
           rookieYear: t.rookie_year,
           scoutingNotes: t.scouting_notes,
+          favorite: !!t.favorite,
         }));
         // Cache in IndexedDB for offline use
         await DB.saveTeams(this._teams);
@@ -61,5 +62,19 @@ const Teams = {
   // Get a single team
   get(teamNumber) {
     return this._teams.find(t => t.teamNumber === teamNumber);
+  },
+
+  // Toggle favorite flag on the server and update local cache
+  async setFavorite(teamNumber, favorite) {
+    const res = await fetch(`/api/teams/${teamNumber}/favorite`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ favorite: !!favorite }),
+    });
+    if (!res.ok) throw new Error('Failed to update favorite');
+    const team = this.get(teamNumber);
+    if (team) team.favorite = !!favorite;
+    try { await DB.saveTeams(this._teams); } catch (e) {}
+    return !!favorite;
   },
 };

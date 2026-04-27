@@ -295,6 +295,7 @@ const AlliancesView = {
         const captain = Teams.get(a.captain);
         const picks = a.picks.map(p => Teams.get(p));
         const isActive = this._getPickingAlliance() === idx;
+        const canChangeCaptain = a.picks.length === 0;
 
         const totalOPR = [captain, ...picks]
           .filter(Boolean)
@@ -305,30 +306,114 @@ const AlliancesView = {
             <span>Alliance ${a.number}</span>
             <span style="font-size:11px; color:var(--accent);">OPR ${totalOPR.toFixed(0)}</span>
           </div>
-          ${this._renderAllianceTeam(captain, 'Captain', tierColors)}
+          ${this._renderAllianceTeam(captain, 'Captain', tierColors, canChangeCaptain ? idx : null)}
           ${picks[0] ? this._renderAllianceTeam(picks[0], '1st', tierColors) : (a.picks.length === 0 && !this._isComplete() ? '<div style="font-size:12px; color:var(--text-secondary); font-style:italic; padding:4px 0;">Awaiting 1st pick...</div>' : '')}
           ${picks[1] ? this._renderAllianceTeam(picks[1], '2nd', tierColors) : (a.picks.length === 1 && !this._isComplete() ? '<div style="font-size:12px; color:var(--text-secondary); font-style:italic; padding:4px 0;">Awaiting 2nd pick...</div>' : '')}
         </div>`;
       }).join('')}
     </div>`;
+
+    grid.querySelectorAll('.change-captain-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const idx = parseInt(btn.dataset.alliance, 10);
+        this._openCaptainPicker(idx);
+      });
+    });
   },
 
-  _renderAllianceTeam(team, draftRole, tierColors) {
+  _renderAllianceTeam(team, draftRole, tierColors, changeableAllianceIdx = null) {
     if (!team) return '';
     const roleIcons = { scorer: '🎯', feeder: '🤝', defender: '🛡️' };
     const scoutedRole = this._getPrimaryRole(team.teamNumber);
     const roleIcon = scoutedRole ? roleIcons[scoutedRole] : '';
+    const changeBtn = changeableAllianceIdx != null
+      ? `<button class="change-captain-btn" data-alliance="${changeableAllianceIdx}" title="Change captain" style="background:none; border:none; cursor:pointer; font-size:12px; padding:2px 4px; color:var(--text-secondary);">✏️</button>`
+      : '';
 
     return `<div style="display:flex; align-items:center; gap:6px; padding:3px 0; border-bottom:1px solid var(--border);">
       <div style="flex:1; min-width:0;">
         <div style="font-size:13px; font-weight:600;">#${team.teamNumber} ${roleIcon}</div>
         <div style="font-size:10px; color:var(--text-secondary); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${UI.esc(team.teamName)}</div>
       </div>
-      <div style="text-align:right; flex-shrink:0;">
-        ${team.opr != null ? `<div style="font-size:10px; font-weight:700; color:var(--accent);">${team.opr.toFixed(0)}</div>` : ''}
-        <div style="font-size:9px; color:var(--text-secondary);">${draftRole}</div>
+      <div style="text-align:right; flex-shrink:0; display:flex; align-items:center; gap:2px;">
+        <div>
+          ${team.opr != null ? `<div style="font-size:10px; font-weight:700; color:var(--accent);">${team.opr.toFixed(0)}</div>` : ''}
+          <div style="font-size:9px; color:var(--text-secondary);">${draftRole}</div>
+        </div>
+        ${changeBtn}
       </div>
     </div>`;
+  },
+
+  _openCaptainPicker(allianceIdx) {
+    const alliance = this._alliances[allianceIdx];
+    const currentCaptain = Teams.get(alliance.captain);
+
+    const candidates = [...this._available];
+    if (currentCaptain) candidates.push(currentCaptain);
+    candidates.sort((a, b) => {
+      const favDiff = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      if (favDiff !== 0) return favDiff;
+      return (b.composite || 0) - (a.composite || 0) || a.teamNumber - b.teamNumber;
+    });
+
+    // Remove existing picker if any
+    const existing = document.getElementById('captain-picker-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'captain-picker-overlay';
+    overlay.style.cssText = 'position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; display:flex; align-items:center; justify-content:center; padding:16px;';
+
+    overlay.innerHTML = `
+      <div class="card" style="max-width:480px; width:100%; max-height:80vh; display:flex; flex-direction:column; padding:0; overflow:hidden;">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+          <strong>Change Alliance ${alliance.number} captain</strong>
+          <button id="captain-picker-close" class="btn btn-secondary btn-small" style="width:auto;">✕</button>
+        </div>
+        <div style="padding:8px 12px; font-size:12px; color:var(--text-secondary); background:var(--bg);">
+          Current: <strong>#${alliance.captain}${currentCaptain ? ' ' + UI.esc(currentCaptain.teamName) : ''}</strong>. Tap a team to make them captain.
+        </div>
+        <div id="captain-picker-list" style="overflow-y:auto; flex:1;">
+          ${candidates.map(t => {
+            const isCurrent = t.teamNumber === alliance.captain;
+            const bg = isCurrent ? '#e3f2fd' : (t.favorite ? '#fffbe6' : '');
+            return `<div class="captain-candidate" data-team="${t.teamNumber}" style="display:flex; align-items:center; gap:8px; padding:10px 12px; border-bottom:1px solid var(--border); cursor:pointer; ${bg ? `background:${bg};` : ''}">
+              <div style="width:48px; text-align:center; font-weight:700; color:var(--accent);">${t.teamNumber}</div>
+              <div style="flex:1; min-width:0;">
+                <div style="font-size:13px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">
+                  ${t.favorite ? '<span style="color:#f5a623; margin-right:4px;" title="Favorite">★</span>' : ''}${UI.esc(t.teamName)}
+                </div>
+                <div style="font-size:11px; color:var(--text-secondary);">
+                  ${t.opr != null ? `OPR ${t.opr.toFixed(0)}` : ''}
+                  ${t.winRate != null ? ` · ${t.winRate}% WR` : ''}
+                  ${isCurrent ? ' · <strong style="color:#2196f3;">current</strong>' : ''}
+                </div>
+              </div>
+              ${t.tier ? `<span class="tier-badge tier-${t.tier}">${t.tier}</span>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    const close = () => overlay.remove();
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    overlay.querySelector('#captain-picker-close').addEventListener('click', close);
+
+    overlay.querySelectorAll('.captain-candidate').forEach(el => {
+      el.addEventListener('click', () => {
+        const num = parseInt(el.dataset.team, 10);
+        if (num === alliance.captain) { close(); return; }
+        const team = Teams.get(num);
+        if (!confirm(`Make #${num} ${team ? team.teamName : ''} the captain of Alliance ${alliance.number}?`)) return;
+        this._swapCaptain(allianceIdx, num);
+        close();
+      });
+    });
   },
 
   _renderAvailable(query) {
@@ -354,8 +439,10 @@ const AlliancesView = {
       );
     }
 
-    // Sort
+    // Sort: favorites always bubble to top, then by selected sort
     filtered.sort((a, b) => {
+      const favDiff = (b.favorite ? 1 : 0) - (a.favorite ? 1 : 0);
+      if (favDiff !== 0) return favDiff;
       switch (this._sortBy) {
         case 'opr': return (b.opr || -999) - (a.opr || -999);
         case 'winrate': return (b.winRate || 0) - (a.winRate || 0);
@@ -382,10 +469,11 @@ const AlliancesView = {
       const roleIcon = primaryRole ? roleIcons[primaryRole] : '';
       const roleColor = primaryRole ? roleColors[primaryRole] : '';
 
-      return `<div class="queue-item ${isPickActive ? 'pickable-team' : ''}" data-team="${t.teamNumber}" style="cursor:${isPickActive ? 'pointer' : 'default'};">
+      return `<div class="queue-item ${isPickActive ? 'pickable-team' : ''}" data-team="${t.teamNumber}" style="cursor:${isPickActive ? 'pointer' : 'default'}; ${t.favorite ? 'background:#fffbe6;' : ''}">
         <div style="width:40px; text-align:center; font-weight:700; font-size:16px; color:var(--accent); flex-shrink:0;">${t.teamNumber}</div>
         <div class="queue-item-info">
           <div class="team">
+            ${t.favorite ? '<span style="color:#f5a623; margin-right:4px;" title="Favorite">★</span>' : ''}
             ${UI.esc(t.teamName)}
             ${primaryRole ? `<span style="color:${roleColor}; font-size:12px; margin-left:4px;" title="${primaryRole}">${roleIcon}</span>` : ''}
           </div>

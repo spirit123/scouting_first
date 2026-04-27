@@ -10,11 +10,13 @@ router.get('/', (req, res) => {
       COUNT(e.filename) as photo_count,
       (SELECT e2.uuid FROM entries e2 WHERE e2.team_number = t.team_number AND e2.filename IS NOT NULL ORDER BY e2.created_at DESC LIMIT 1) as latest_photo_uuid,
       th.photo_source as thumbnail_source,
+      CASE WHEN tf.team_number IS NOT NULL THEN 1 ELSE 0 END as favorite,
       s.opr, s.win_rate, s.avg_score, s.avg_rp, s.composite, s.tier,
       s.record, s.source_event, s.rank_at_event, s.rookie_year, s.scouting_notes
     FROM teams t
     LEFT JOIN entries e ON t.team_number = e.team_number
     LEFT JOIN team_thumbnails th ON t.team_number = th.team_number
+    LEFT JOIN team_favorites tf ON t.team_number = tf.team_number
     LEFT JOIN team_stats s ON t.team_number = s.team_number
     GROUP BY t.team_number
     ORDER BY t.team_number
@@ -31,10 +33,12 @@ router.get('/:num', (req, res) => {
     SELECT t.*,
       COUNT(e.uuid) as entry_count,
       COUNT(e.filename) as photo_count,
+      CASE WHEN tf.team_number IS NOT NULL THEN 1 ELSE 0 END as favorite,
       s.opr, s.win_rate, s.avg_score, s.avg_rp, s.composite, s.tier,
       s.record, s.source_event, s.rank_at_event, s.rookie_year, s.scouting_notes
     FROM teams t
     LEFT JOIN entries e ON t.team_number = e.team_number
+    LEFT JOIN team_favorites tf ON t.team_number = tf.team_number
     LEFT JOIN team_stats s ON t.team_number = s.team_number
     WHERE t.team_number = ?
     GROUP BY t.team_number
@@ -54,6 +58,23 @@ router.post('/:num/thumbnail', (req, res) => {
 
   db.run('INSERT OR REPLACE INTO team_thumbnails (team_number, photo_source) VALUES (?, ?)', [num, photoSource]);
   res.json({ ok: true });
+});
+
+// POST /api/teams/:num/favorite — toggle favorite flag
+router.post('/:num/favorite', (req, res) => {
+  const num = parseInt(req.params.num, 10);
+  if (isNaN(num)) return res.status(400).json({ error: 'Invalid team number' });
+
+  const team = db.get('SELECT team_number FROM teams WHERE team_number = ?', [num]);
+  if (!team) return res.status(404).json({ error: 'Team not found' });
+
+  const favorite = !!req.body.favorite;
+  if (favorite) {
+    db.run('INSERT OR IGNORE INTO team_favorites (team_number) VALUES (?)', [num]);
+  } else {
+    db.run('DELETE FROM team_favorites WHERE team_number = ?', [num]);
+  }
+  res.json({ ok: true, favorite });
 });
 
 module.exports = router;

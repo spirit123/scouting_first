@@ -11,11 +11,13 @@ const TeamDetailView = {
       <div class="card">
         <div style="display:flex; align-items:center; gap:8px; margin-bottom:8px;">
           <a href="#/gallery" class="back-link" style="padding:0;">←</a>
-          <div>
+          <div style="flex:1; min-width:0;">
             <div style="font-size:20px; font-weight:700;">Team #${num}</div>
             <div style="font-size:14px; color:var(--text-secondary);">${UI.esc(teamName)}</div>
             ${teamInfo ? `<div style="font-size:12px; color:var(--text-secondary);">${UI.esc(teamInfo)}</div>` : ''}
           </div>
+          <button id="favorite-toggle" title="${team && team.favorite ? 'Unfavorite' : 'Favorite'}"
+            style="background:none; border:none; cursor:pointer; font-size:28px; line-height:1; padding:4px 8px; color:${team && team.favorite ? '#f5a623' : 'var(--text-secondary)'};">${team && team.favorite ? '★' : '☆'}</button>
         </div>
         <div id="team-all-photos"></div>
         ${this._renderStats(team)}
@@ -23,6 +25,24 @@ const TeamDetailView = {
       </div>
       <div id="team-entries">Loading...</div>
     `;
+
+    const favBtn = UI.$('#favorite-toggle');
+    if (favBtn && team) {
+      favBtn.addEventListener('click', async () => {
+        const next = !team.favorite;
+        favBtn.disabled = true;
+        try {
+          await Teams.setFavorite(num, next);
+          favBtn.textContent = next ? '★' : '☆';
+          favBtn.title = next ? 'Unfavorite' : 'Favorite';
+          favBtn.style.color = next ? '#f5a623' : 'var(--text-secondary)';
+        } catch (err) {
+          UI.toast('Failed to update favorite', 'error');
+        } finally {
+          favBtn.disabled = false;
+        }
+      });
+    }
 
     await this._loadEntries(num, robotImg);
   },

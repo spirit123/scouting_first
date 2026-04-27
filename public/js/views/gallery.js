@@ -147,7 +147,9 @@ const GalleryView = {
         }
 
         return `
-        <a href="#/team/${t.teamNumber}" class="team-card" style="${borderStyle}">
+        <a href="#/team/${t.teamNumber}" class="team-card" style="position:relative; ${borderStyle}">
+          <button class="favorite-toggle" data-team="${t.teamNumber}" title="${t.favorite ? 'Unfavorite' : 'Favorite'}"
+            style="position:absolute; top:4px; right:4px; background:rgba(255,255,255,0.85); border:none; border-radius:50%; width:28px; height:28px; cursor:pointer; font-size:16px; line-height:1; padding:0; display:flex; align-items:center; justify-content:center; z-index:2;">${t.favorite ? '★' : '☆'}</button>
           ${imgSrc ? `<img src="${UI.esc(imgSrc)}" alt="Team ${t.teamNumber}" class="team-card-img" loading="lazy">` : ''}
           <div class="team-number">${t.teamNumber}</div>
           <div class="team-name">${UI.esc(t.teamName)}</div>
@@ -159,5 +161,26 @@ const GalleryView = {
         </a>`;
       }).join('')}
     </div>`;
+
+    container.querySelectorAll('.favorite-toggle').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        const num = parseInt(btn.dataset.team, 10);
+        const team = Teams.get(num);
+        if (!team) return;
+        const next = !team.favorite;
+        btn.disabled = true;
+        try {
+          await Teams.setFavorite(num, next);
+          btn.textContent = next ? '★' : '☆';
+          btn.title = next ? 'Unfavorite' : 'Favorite';
+        } catch (err) {
+          UI.toast('Failed to update favorite', 'error');
+        } finally {
+          btn.disabled = false;
+        }
+      });
+    });
   },
 };

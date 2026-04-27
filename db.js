@@ -63,6 +63,11 @@ CREATE TABLE IF NOT EXISTS team_thumbnails (
     FOREIGN KEY (team_number) REFERENCES teams(team_number)
 );
 
+CREATE TABLE IF NOT EXISTS team_favorites (
+    team_number   INTEGER PRIMARY KEY,
+    FOREIGN KEY (team_number) REFERENCES teams(team_number)
+);
+
 CREATE TABLE IF NOT EXISTS scouts (
     name TEXT PRIMARY KEY
 );
