@@ -110,7 +110,7 @@ const ScoutView = {
 
         <!-- Step 4: Autonomous -->
         <div class="form-group">
-          <label>4. Autonomous (optional)</label>
+          <label>4. Autonomous <span style="font-weight:400; color:var(--text-secondary); font-size:12px;">(this match only — resets on each entry)</span></label>
           <div class="capability-row">
             <div class="capability-label">Start position</div>
             <div class="position-toggle" data-field="autoStartPosition">
@@ -417,7 +417,10 @@ const ScoutView = {
     // Show existing data panel
     this._showExistingData(allEntries);
 
-    // Pre-fill form from the most recent entry
+    // Pre-fill form from the most recent entry. Robot-capability fields
+    // (drivetrain, climb, bumps, trenches, role) carry over because they
+    // describe the robot. Autonomous-period fields are per-match — they
+    // always reset so the scout has to enter what happened *this* match.
     const latest = this._getLatestEntry(allEntries);
     UI.log('[Scout] Latest entry:', latest);
     if (latest) {
@@ -427,15 +430,9 @@ const ScoutView = {
       const underTrenches = latest.underTrenches ?? latest.under_trenches ?? null;
       const climbLevel = latest.climbLevel ?? latest.climb_level ?? null;
       const drivetrain = latest.drivetrain ?? null;
-      const autoStartPosition = latest.autoStartPosition ?? latest.auto_start_position ?? null;
-      const autoPerformance = latest.autoPerformance ?? latest.auto_performance ?? null;
-      const autoActions = parseRoles(latest.autoActions ?? latest.auto_actions);
-      const autoNotes = latest.autoNotes ?? latest.auto_notes ?? '';
       UI.log('[Scout] Pre-filling: roles=' + roles.join(',') + ', notes=' + notes
         + ', passesBumps=' + passesBumps + ', underTrenches=' + underTrenches
-        + ', climbLevel=' + climbLevel + ', drivetrain=' + drivetrain
-        + ', autoPos=' + autoStartPosition + ', autoPerf=' + autoPerformance
-        + ', autoActions=' + autoActions.join(','));
+        + ', climbLevel=' + climbLevel + ', drivetrain=' + drivetrain);
 
       // Set roles
       this._selectedRoles = roles.slice();
@@ -443,22 +440,24 @@ const ScoutView = {
         b.classList.toggle('active', roles.includes(b.dataset.role));
       });
 
-      // Set capabilities
+      // Set robot-capability fields
       this._passesBumps = passesBumps;
       this._underTrenches = underTrenches;
       this._climbLevel = climbLevel;
       this._drivetrain = drivetrain;
-      this._autoStartPosition = autoStartPosition;
-      this._autoPerformance = autoPerformance;
-      this._autoActions = autoActions.slice();
       this._setTriToggle('passesBumps', passesBumps);
       this._setTriToggle('underTrenches', underTrenches);
       this._setClimbToggle(climbLevel);
       this._setDrivetrainToggle(drivetrain);
-      this._setGroupToggle('.position-toggle', '.position-btn', autoStartPosition);
-      this._setGroupToggle('.perf-toggle', '.perf-btn', autoPerformance);
-      this._setActionChecks(autoActions);
-      UI.$('#entry-auto-notes').value = autoNotes;
+
+      // Auto-period fields always reset (per-match observations)
+      this._autoStartPosition = null;
+      this._autoPerformance = null;
+      this._autoActions = [];
+      this._setGroupToggle('.position-toggle', '.position-btn', null);
+      this._setGroupToggle('.perf-toggle', '.perf-btn', null);
+      this._setActionChecks([]);
+      UI.$('#entry-auto-notes').value = '';
 
       // Set notes
       UI.$('#entry-notes').value = notes;

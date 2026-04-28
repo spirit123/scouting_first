@@ -1,6 +1,6 @@
 {
   "name": "ftc-scout",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "private": true,
   "description": "FTC/FRC scouting app — offline-first PWA with hotspot sync",
   "scripts": {
